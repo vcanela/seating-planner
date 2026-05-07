@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Seating Planner</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+    <style>
+        /* Base Styles */
+        body { font-family: system-ui, -apple-system, sans-serif; }
+        
+        /* Grid & Seats */
+        .seating-grid {
+            display: grid;
+            gap: 0.5rem;
+            margin: 1rem auto;
+            max-width: 800px;
+            user-select: none;
+        }
+        
+        .seat {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 0.75rem;
+            line-height: 1.1;
+            padding: 2px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.15s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        /* Seat States */
+        .seat.empty { background-color: #f3f4f6; border: 2px solid #e5e7eb; color: #9ca3af; }
+        .seat.selected { background-color: #3b82f6; border: 2px solid #2563eb; color: white; }
+        .seat.assigned { background-color: #dbeafe; border: 2px solid #93c5fd; color: #1e3a8a; cursor: grab; }
+        .seat.assigned:active { cursor: grabbing; }
+        .seat.not-available { background-color: #e5e7eb; border: 1px dashed #d1d5db; opacity: 0.5; }
+        
+        /* Dragging visuals */
+        .seat.drag-over { border-color: #2563eb; transform: scale(1.05); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+
+        /* Print Styles */
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; padding: 0; }
+            .card { box-shadow: none; border: none; padding: 0; margin: 0; max-width: 100%; }
+            .seat { border: 1px solid #000; color: black; background: white !important; print-color-adjust: exact; }
+            .seat.assigned { background: #f0f0f0 !important; }
+            .seat.not-available { opacity: 0; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- React Setup ---
+        const { useState, useEffect } = React;
+
+        // --- Helpers ---
+        const loadJSON = (key, defaultValue) => {
+            try { 
+                const item = localStorage.getItem(key);
+                return item ? JSON.parse(item) : defaultValue;
+            } catch (e) { 
+                return defaultValue; 
+            }
+        };
+        
+        const saveJSON = (key, value) => {
+            try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+        };
+
+        // --- Icons ---
+        const IconUser = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+        const IconX = () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+        const IconPrint = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>;
+        const IconSave = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>;
+        const IconUpload = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
+        const IconTrash = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
+
+        // --- Reusable Button Component ---
+        const ActionButton = ({ onClick, icon, children, variant = 'secondary', className = '', ...props }) => {
+            const baseStyles = "w-full py-2 px-4 rounded shadow font-bold flex items-center justify-center gap-2 transition-all active:scale-95 text-sm cursor-pointer";
+            const variants = {
+                primary: "bg-blue-600 text-white hover:bg-blue-700 border border-blue-600",
+                secondary: "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50",
+                danger: "bg-white border border-red-200 text-red-600 hover:bg-red-50"
+            };
+            return (
+                <button 
+                    onClick={onClick} 
+                    className={`${baseStyles} ${variants[variant]} ${className}`} 
+                    type="button"
+                    {...props}
+                >
+                    {icon} {children}
+                </button>
+            );
+        };
+
+        // --- Main Component ---
+        const SeatingPlanner = () => {
+            // State
+            const [rows, setRows] = useState(() => loadJSON('planner_rows', 5));
+            const [cols, setCols] = useState(() => loadJSON('planner_cols', 6));
+            const [selectedSeats, setSelectedSeats] = useState(() => new Set(loadJSON('planner_selectedSeats', [])));
+            const [students, setStudents] = useState(() => loadJSON('planner_students', []));
+            const [constraints, setConstraints] = useState(() => loadJSON('planner_constraints', []));
+            const [seatingPlan, setSeatingPlan] = useState(() => new Map(loadJSON('planner_seatingPlan', null)));
+            const [step, setStep] = useState(1);
+            const [errorMsg, setErrorMsg] = useState('');
+            
+            // Constraint Form State
+            const [constraintType, setConstraintType] = useState('front');
+            const [selStudent1, setSelStudent1] = useState('');
+            const [selStudent2, setSelStudent2] = useState('');
+
+            // Interaction State
+            const [isDraggingSelection, setIsDraggingSelection] = useState(false);
+            const [dragMode, setDragMode] = useState(true); 
+            const [draggedStudent, setDraggedStudent] = useState(null);
+
+            // Persistence
+            useEffect(() => saveJSON('planner_rows', rows), [rows]);
+            useEffect(() => saveJSON('planner_cols', cols), [cols]);
+            useEffect(() => saveJSON('planner_selectedSeats', [...selectedSeats]), [selectedSeats]);
+            useEffect(() => saveJSON('planner_students', students), [students]);
+            useEffect(() => saveJSON('planner_constraints', constraints), [constraints]);
+            useEffect(() => saveJSON('planner_seatingPlan', seatingPlan ? [...seatingPlan] : null), [seatingPlan]);
+
+            // --- Logic: Layout ---
+            const handleSeatMouseDown = (seatId) => {
+                if (step !== 1) return;
+                setIsDraggingSelection(true);
+                const newSet = new Set(selectedSeats);
+                const willSelect = !newSet.has(seatId);
+                setDragMode(willSelect);
+                if (willSelect) newSet.add(seatId); else newSet.delete(seatId);
+                setSelectedSeats(newSet);
+                setSeatingPlan(null);
+            };
+
+            const handleSeatMouseEnter = (seatId) => {
+                if (!isDraggingSelection || step !== 1) return;
+                const newSet = new Set(selectedSeats);
+                if (dragMode) newSet.add(seatId); else newSet.delete(seatId);
+                setSelectedSeats(newSet);
+            };
+
+            const handleMouseUp = () => setIsDraggingSelection(false);
+            useEffect(() => { window.addEventListener('mouseup', handleMouseUp); return () => window.removeEventListener('mouseup', handleMouseUp); }, []);
+
+            const clearGrid = () => {
+                if(window.confirm("Are you sure you want to deselect all seats?")) {
+                    setSelectedSeats(new Set());
+                    setSeatingPlan(null);
+                }
+            };
+
+            // --- Logic: Students ---
+            const addStudents = (rawInput) => {
+                const names = rawInput.split(/[,;\n]/).map(n => n.trim()).filter(Boolean);
+                if (!names.length) return;
+                
+                const existingNames = new Set(students.map(s => s.name.toLowerCase()));
+                const uniqueNew = names.filter(n => !existingNames.has(n.toLowerCase()));
+                
+                if (uniqueNew.length < names.length) setErrorMsg("Skipped duplicate names.");
+                else setErrorMsg("");
+
+                setStudents(prev => [...prev, ...uniqueNew.map(name => ({ name, id: Date.now() + Math.random() }))]);
+                setSeatingPlan(null);
+            };
+
+            const removeStudent = (id) => {
+                setStudents(students.filter(s => s.id !== id));
+                setConstraints(constraints.filter(c => c.student1 !== id && c.student2 !== id));
+                setSeatingPlan(null);
+            };
+
+            // --- Logic: Constraints ---
+            const addConstraint = () => {
+                if (!selStudent1) return;
+                if (constraintType === 'separate' && !selStudent2) return;
+
+                const newC = {
+                    id: Date.now(),
+                    type: constraintType,
+                    student1: selStudent1,
+                    student2: constraintType === 'separate' ? selStudent2 : null
+                };
+
+                // Simple duplicate check
+                const isDup = constraints.some(c => 
+                    c.type === newC.type && 
+                    ((c.student1 === newC.student1 && c.student2 === newC.student2) || 
+                     (c.type === 'separate' && c.student1 === newC.student2 && c.student2 === newC.student1))
+                );
+
+                if (!isDup) {
+                    setConstraints([...constraints, newC]);
+                    setSelStudent1('');
+                    setSelStudent2('');
+                    setSeatingPlan(null);
+                }
+            };
+
+            // --- Logic: Generation ---
+            const generatePlan = () => {
+                if (students.length > selectedSeats.size) return setErrorMsg(`Need ${students.length - selectedSeats.size} more seats.`);
+                
+                let bestPlan = null;
+                let bestScore = -Infinity;
+
+                // Monte Carlo Simulation
+                for(let attempt = 0; attempt < 100; attempt++) {
+                    const available = [...selectedSeats];
+                    const remainingStudents = [...students].sort(() => Math.random() - 0.5);
+                    const currentPlan = new Map();
+                    let score = 0;
+
+                    // 1. Assign "Front" Constraints
+                    const frontRows = Math.ceil(rows/2);
+                    const frontReqs = constraints.filter(c => c.type === 'front');
+                    
+                    for (const req of frontReqs) {
+                        const studentIdx = remainingStudents.findIndex(s => s.name === req.student1);
+                        if (studentIdx > -1) {
+                            const frontSeats = available.filter(id => parseInt(id.split('-')[0]) < frontRows);
+                            
+                            if (frontSeats.length) {
+                                const seat = frontSeats[Math.floor(Math.random() * frontSeats.length)];
+                                currentPlan.set(remainingStudents[studentIdx].name, seat);
+                                available.splice(available.indexOf(seat), 1);
+                                remainingStudents.splice(studentIdx, 1);
+                                score += 50; 
+                            } else {
+                                score -= 50;
+                            }
+                        }
+                    }
+
+                    // 2. Fill remaining
+                    for (const student of remainingStudents) {
+                        const seatIdx = Math.floor(Math.random() * available.length);
+                        currentPlan.set(student.name, available[seatIdx]);
+                        available.splice(seatIdx, 1);
+                    }
+
+                    // 3. Check Separation
+                    const sepReqs = constraints.filter(c => c.type === 'separate');
+                    for (const req of sepReqs) {
+                        const s1Seat = currentPlan.get(req.student1);
+                        const s2Seat = currentPlan.get(req.student2);
+                        
+                        if (s1Seat && s2Seat) {
+                            const [r1, c1] = s1Seat.split('-').map(Number);
+                            const [r2, c2] = s2Seat.split('-').map(Number);
+                            const dist = Math.sqrt(Math.pow(r2-r1, 2) + Math.pow(c2-c1, 2));
+                            
+                            if (dist < 1.5) score -= 100;
+                            else if (dist < 2.5) score -= 20;
+                            else score += 20;
+                        }
+                    }
+                    
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestPlan = currentPlan;
+                    }
+                }
+                
+                setSeatingPlan(bestPlan);
+                setErrorMsg("");
+            };
+
+            // --- Logic: Drag Swap ---
+            const handleDragStart = (e, studentName, seatId) => {
+                if(step !== 3) return;
+                setDraggedStudent({ name: studentName, fromSeat: seatId });
+                e.dataTransfer.effectAllowed = "move";
+            };
+
+            const handleDragOver = (e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); };
+            const handleDragLeave = (e) => { e.currentTarget.classList.remove('drag-over'); };
+            
+            const handleDrop = (e, targetSeatId) => {
+                e.preventDefault();
+                e.currentTarget.classList.remove('drag-over');
+                if (!draggedStudent) return;
+                const newPlan = new Map(seatingPlan);
+                let targetStudentName = null;
+                for (const [name, seat] of newPlan.entries()) { if (seat === targetSeatId) targetStudentName = name; }
+                newPlan.set(draggedStudent.name, targetSeatId);
+                if (targetStudentName) newPlan.set(targetStudentName, draggedStudent.fromSeat);
+                setSeatingPlan(newPlan);
+                setDraggedStudent(null);
+            };
+
+            // --- Logic: IO ---
+            const downloadConfig = () => {
+                const data = { rows, cols, selectedSeats: [...selectedSeats], students, constraints };
+                const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = 'classroom-config.json';
+                a.click();
+            };
+
+            const uploadConfig = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        setRows(data.rows || 5);
+                        setCols(data.cols || 6);
+                        setSelectedSeats(new Set(data.selectedSeats || []));
+                        setStudents(data.students || []);
+                        setConstraints(data.constraints || []);
+                        setSeatingPlan(null);
+                        alert("Class loaded successfully!");
+                    } catch(err) { alert("Invalid file"); }
+                };
+                reader.readAsText(file);
+            };
+
+            return (
+                <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row min-h-[600px] card">
+                    
+                    {/* SIDEBAR: CONTROLS */}
+                    <div className="w-full md:w-1/3 bg-gray-50 p-6 border-r border-gray-200 flex flex-col no-print overflow-y-auto max-h-screen md:max-h-[800px]">
+                        <h1 className="text-2xl font-bold text-gray-800 mb-6">Seating Planner</h1>
+                        
+                        {/* Progress Stepper */}
+                        <div className="flex justify-between mb-8 text-sm font-semibold text-gray-400">
+                            {[1,2,3].map(s => (
+                                <button key={s} onClick={() => setStep(s)} className={`px-3 py-1 rounded-full ${step === s ? 'bg-blue-600 text-white' : 'hover:bg-gray-200'}`}>
+                                    {s}. {['Layout', 'Students', 'Plan'][s-1]}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* STEP 1: LAYOUT */}
+                        {step === 1 && (
+                            <div className="space-y-4 animate-fade-in">
+                                <p className="text-sm text-gray-600">Drag across grid to paint available seats.</p>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase">Rows</label>
+                                        <input type="number" value={rows} onChange={e=>setRows(Number(e.target.value))} className="w-full border rounded p-2 mt-1" min="2" max="15"/>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase">Cols</label>
+                                        <input type="number" value={cols} onChange={e=>setCols(Number(e.target.value))} className="w-full border rounded p-2 mt-1" min="2" max="15"/>
+                                    </div>
+                                </div>
+                                <div className="pt-2">
+                                     <ActionButton onClick={clearGrid} variant="danger" icon={<IconTrash/>}>Clear Grid</ActionButton>
+                                </div>
+                                <div className="pt-4 border-t space-y-2">
+                                     <ActionButton onClick={downloadConfig} icon={<IconSave/>}>Save Class</ActionButton>
+                                     <label className="block w-full">
+                                        <div className="w-full py-2 px-4 rounded shadow font-bold flex items-center justify-center gap-2 transition-all active:scale-95 text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer">
+                                            <IconUpload/> Load Class
+                                        </div>
+                                        <input type="file" onChange={uploadConfig} className="hidden" accept=".json"/>
+                                     </label>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* STEP 2: STUDENTS */}
+                        {step === 2 && (
+                            <div className="space-y-4 flex-1 flex flex-col">
+                                <div className="bg-gray-100 p-3 rounded text-xs text-gray-600 space-y-1">
+                                    <p><strong>Instructions:</strong></p>
+                                    <ul className="list-disc ml-4 space-y-1">
+                                        <li>Separate names with commas (,) or new lines.</li>
+                                        <li>Names must be unique. Duplicates are skipped.</li>
+                                        <li>Example: <em>John, Sarah, Mike, Emily</em></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase">Add Students</label>
+                                    <textarea 
+                                        className="w-full border rounded p-2 mt-1 text-sm h-24" 
+                                        placeholder="Paste names here..."
+                                        onKeyDown={e => { if(e.key === 'Enter'){ e.preventDefault(); addStudents(e.target.value); e.target.value=''; }}}
+                                    ></textarea>
+                                    <p className="text-xs text-gray-400 mt-1">Press Enter to add.</p>
+                                </div>
+                                
+                                <div className="flex-1 overflow-y-auto border rounded bg-white p-2 space-y-1 min-h-[100px]">
+                                    {students.length === 0 && <p className="text-center text-gray-400 text-sm py-4">No students yet.</p>}
+                                    {students.map(s => (
+                                        <div key={s.id} className="flex justify-between items-center text-sm p-1 hover:bg-gray-50 rounded group">
+                                            <span className="truncate">{s.name}</span>
+                                            <button onClick={() => removeStudent(s.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100"><IconX/></button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <ActionButton onClick={() => {if(window.confirm('Clear all students?')) setStudents([])}} variant="danger" icon={<IconTrash/>}>Clear Student List</ActionButton>
+                            </div>
+                        )}
+
+                        {/* STEP 3: GENERATE */}
+                        {step === 3 && (
+                            <div className="space-y-4">
+                                <div className="bg-blue-50 p-3 rounded border border-blue-100 space-y-2">
+                                    <h3 className="font-bold text-blue-800 text-sm">Actions</h3>
+                                    <ActionButton onClick={generatePlan} variant="primary">
+                                        {seatingPlan ? 'Reshuffle Plan' : 'Generate Plan'}
+                                    </ActionButton>
+                                    <ActionButton onClick={() => window.print()} icon={<IconPrint/>}>
+                                        Print Plan
+                                    </ActionButton>
+                                </div>
+                                
+                                <div className="p-3 bg-yellow-50 rounded border border-yellow-100 text-xs text-yellow-800">
+                                    <strong>Tip:</strong> Drag and drop students on the grid to swap seats manually.
+                                </div>
+
+                                <div className="pt-2 border-t">
+                                    <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Constraints</h3>
+                                    <div className="space-y-2">
+                                        <select className="w-full border rounded p-2 text-sm bg-white" value={constraintType} onChange={e => setConstraintType(e.target.value)}>
+                                            <option value="front">Must Sit Front</option>
+                                            <option value="separate">Must Be Separated</option>
+                                        </select>
+
+                                        {/* Constraint Inputs */}
+                                        <select 
+                                            className="w-full border rounded p-2 text-sm bg-white"
+                                            value={selStudent1}
+                                            onChange={e => setSelStudent1(e.target.value)}
+                                        >
+                                            <option value="">Select Student 1...</option>
+                                            {students.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                                        </select>
+
+                                        {constraintType === 'separate' && (
+                                            <select 
+                                                className="w-full border rounded p-2 text-sm bg-white"
+                                                value={selStudent2}
+                                                onChange={e => setSelStudent2(e.target.value)}
+                                                disabled={!selStudent1}
+                                            >
+                                                <option value="">Select Student 2...</option>
+                                                {students.filter(s => s.name !== selStudent1).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                                            </select>
+                                        )}
+
+                                        <ActionButton onClick={addConstraint} variant="secondary" disabled={!selStudent1}>
+                                            Add Constraint
+                                        </ActionButton>
+                                    </div>
+
+                                    {/* List Active Constraints */}
+                                    <div className="mt-4 space-y-1">
+                                        {constraints.length === 0 && <p className="text-xs text-gray-400 italic">No constraints active.</p>}
+                                        {constraints.map(c => (
+                                            <div key={c.id} className="text-xs bg-white border px-2 py-1 rounded flex justify-between items-center">
+                                                <span>
+                                                    {c.type === 'front' && <span><strong>{c.student1}</strong> &#8594; Front</span>}
+                                                    {c.type === 'separate' && <span><strong>{c.student1}</strong> &#8596; <strong>{c.student2}</strong></span>}
+                                                </span>
+                                                <button onClick={() => setConstraints(constraints.filter(x => x.id !== c.id))} className="text-red-500 font-bold px-1">&times;</button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {errorMsg && <div className="mt-4 p-2 bg-red-100 text-red-700 text-sm rounded">{errorMsg}</div>}
+                    </div>
+
+                    {/* MAIN AREA: GRID DISPLAY */}
+                    <div className="w-full md:w-2/3 p-6 bg-white overflow-auto flex flex-col">
+                        
+                        {/* Board Indicator */}
+                        <div className="w-full max-w-[600px] mx-auto mb-6 flex flex-col items-center">
+                            <div className="w-2/3 h-4 bg-gray-800 rounded-b-lg mb-1 shadow-sm"></div>
+                            <span className="text-xs text-gray-400 font-bold tracking-widest uppercase">Front of Class / Board</span>
+                        </div>
+
+                        {/* The Grid */}
+                        <div 
+                            className="seating-grid"
+                            style={{ 
+                                gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                                width: '100%'
+                            }}
+                            onMouseLeave={handleMouseUp}
+                        >
+                            {Array.from({ length: rows * cols }).map((_, idx) => {
+                                const r = Math.floor(idx / cols);
+                                const c = idx % cols;
+                                const seatId = `${r}-${c}`;
+                                const isSelected = selectedSeats.has(seatId);
+                                
+                                // Step 1: Layout Editing
+                                if (step === 1) {
+                                    return (
+                                        <div 
+                                            key={seatId}
+                                            onMouseDown={() => handleSeatMouseDown(seatId)}
+                                            onMouseEnter={() => handleSeatMouseEnter(seatId)}
+                                            className={`seat cursor-pointer ${isSelected ? 'selected' : 'empty'}`}
+                                        >
+                                            {isSelected ? `${r+1}-${c+1}` : ''}
+                                        </div>
+                                    );
+                                }
+
+                                // Step 2 & 3: Display
+                                if (!isSelected) return <div key={seatId} className="seat not-available"></div>;
+
+                                // Determine content for Step 3
+                                let studentName = null;
+                                if (seatingPlan) {
+                                    for (const [name, assignedId] of seatingPlan.entries()) {
+                                        if (assignedId === seatId) studentName = name;
+                                    }
+                                }
+
+                                return (
+                                    <div 
+                                        key={seatId}
+                                        className={`seat ${studentName ? 'assigned' : 'unselected-available'}`}
+                                        draggable={!!studentName && step === 3}
+                                        onDragStart={(e) => handleDragStart(e, studentName, seatId)}
+                                        onDragOver={handleDragOver}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={(e) => handleDrop(e, seatId)}
+                                    >
+                                        {studentName || (step === 3 ? <span className="text-gray-300 text-xs">Empty</span> : '')}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        
+        <div className="mt-auto pt-4 text-center text-xs text-gray-400 no-print">
+            {selectedSeats.size} seats selected • {students.length} students enrolled
+        </div>
+                    </div>
+                </div>
+		);
+		};
+
+		const root = ReactDOM.createRoot(document.getElementById('root'));
+		root.render(<SeatingPlanner />);
+    </script>
+</body>
+</html>
