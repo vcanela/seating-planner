@@ -388,7 +388,7 @@
             }, [classId, className, rows, cols, selectedSeats, students, constraints, seatingPlan]);
 
             // ── Class management ──
-            const loadClass = (id, classes) => {
+            const loadClass = (id, classes, keepStep = false) => {
                 const schema = classes[id];
                 if (!schema) return;
                 const d = deserializeClass(schema);
@@ -397,13 +397,14 @@
                 setClassCreated(schema.meta?.created ?? todayISO());
                 setRows(d.rows); setCols(d.cols); setSel(d.selectedSeats);
                 setStudents(d.students); setCons(d.constraints); setPlan(d.seatingPlan);
-                setReshuffleSim(null); setError(''); setStep(1);
+                setReshuffleSim(null); setError('');
+                if (!keepStep) setStep(1);
                 saveJSON(ACTIVE_KEY, id);
             };
 
-            const switchClass = (id) => {
+            const switchClass = (id, keepStep = false) => {
                 const classes = loadJSON(CLASSES_KEY, {});
-                loadClass(id, classes);
+                loadClass(id, classes, keepStep);
             };
 
             const createClass = () => {
@@ -458,7 +459,53 @@
                 a.click();
             };
 
-            // ── Import ──
+            // ── Export / Import all classes ──
+            const exportAllClasses = () => {
+                const classes = loadJSON(CLASSES_KEY, {});
+                const payload = {
+                    version: '1.0',
+                    type: 'collection',
+                    exported: todayISO(),
+                    classes: Object.values(classes).map(c => {
+                        const { _lastPlan, ...rest } = c;
+                        return rest;
+                    })
+                };
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `all-classes-${todayISO()}.json` });
+                a.click();
+            };
+
+            const importAllClasses = (e) => {
+                const file = e.target.files[0]; if (!file) return;
+                e.target.value = '';
+                const reader = new FileReader();
+                reader.onload = ev => {
+                    try {
+                        const json = JSON.parse(ev.target.result);
+                        if (json.type !== 'collection' || !Array.isArray(json.classes))
+                            return setError('This looks like a single-class file — use the single import button instead.');
+                        const classes = loadJSON(CLASSES_KEY, {});
+                        const allWarnings = [];
+                        let count = 0;
+                        for (const classData of json.classes) {
+                            const { data, warnings } = validateAndImport(classData);
+                            classes[genId()] = data;
+                            count++;
+                            if (warnings.length) allWarnings.push(`${data.meta.name}: ${warnings.join(' ')}`);
+                        }
+                        saveJSON(CLASSES_KEY, classes);
+                        setClassIndex(Object.fromEntries(Object.entries(classes).map(([id, c]) => [id, c.meta?.name ?? 'Unnamed'])));
+                        setImportWarn(allWarnings.length
+                            ? [`${count} class${count!==1?'es':''} imported with notes:`, ...allWarnings]
+                            : [`${count} class${count!==1?'es':''} imported successfully.`]
+                        );
+                    } catch { setError('Could not read file — invalid JSON.'); }
+                };
+                reader.readAsText(file);
+            };
+
+            // ── Import single class ──
             const importClass = (e) => {
                 const file = e.target.files[0]; if (!file) return;
                 e.target.value = '';
@@ -615,7 +662,7 @@
                                 </div>
                                 <span className="text-white font-bold text-lg tracking-tight">Seating Planner</span>
                             </div>
-                            <p className="text-slate-500 text-xs ml-9">Classroom layout tool</p>
+                            <p className="text-slate-500 text-xs ml-9 truncate" title={className}>{className}</p>
                         </div>
 
                         {/* Step nav */}
@@ -632,56 +679,51 @@
                             <div className="space-y-4 fade-in flex-1">
 
                                 {/* Class library */}
-                                <div>
+                                <div className="space-y-2">
                                     <label className="field-label">My Classes</label>
 
-                                    {/* Class selector */}
-                                    <select
-                                        className="field mb-2"
-                                        value={classId}
-                                        onChange={e => switchClass(e.target.value)}
-                                    >
+                                    {/* Switch + rename */}
+                                    <select className="field" value={classId} onChange={e => switchClass(e.target.value)}>
                                         {Object.entries(classIndex).map(([id, name]) => (
                                             <option key={id} value={id}>{name}</option>
                                         ))}
                                     </select>
+                                    <input type="text" className="field" value={className} onChange={e => renameClass(e.target.value)} placeholder="Class name…"/>
 
-                                    {/* Class name edit */}
-                                    <input
-                                        type="text"
-                                        className="field mb-2"
-                                        value={className}
-                                        onChange={e => renameClass(e.target.value)}
-                                        placeholder="Class name…"
-                                    />
-
-                                    {/* Class actions */}
+                                    {/* Per-class actions */}
                                     <div className="flex gap-2">
-                                        <button className="icon-btn flex-1" style={{width:'auto'}} onClick={createClass} title="New class">
-                                            <IPlus/>
-                                        </button>
-                                        <button className="icon-btn flex-1" style={{width:'auto'}} onClick={duplicateClass} title="Duplicate class">
-                                            <ICopy/>
-                                        </button>
-                                        <label className="icon-btn flex-1" style={{width:'auto', cursor:'pointer'}} title="Import class from file">
+                                        <button className="icon-btn flex-1" style={{width:'auto'}} onClick={createClass} title="New class"><IPlus/></button>
+                                        <button className="icon-btn flex-1" style={{width:'auto'}} onClick={duplicateClass} title="Duplicate this class"><ICopy/></button>
+                                        <label className="icon-btn flex-1" style={{width:'auto', cursor:'pointer'}} title="Import a single class from file">
                                             <IUpload/>
                                             <input type="file" onChange={importClass} className="hidden" accept=".json"/>
                                         </label>
-                                        <button className="icon-btn danger flex-1" style={{width:'auto'}} onClick={deleteClass} title="Delete class">
-                                            <ITrash/>
-                                        </button>
+                                        <button className="icon-btn danger flex-1" style={{width:'auto'}} onClick={deleteClass} title="Delete this class"><ITrash/></button>
                                     </div>
 
-                                    {/* Import warnings */}
+                                    {/* Transfer all classes */}
+                                    <div className="divider"/>
+                                    <label className="field-label">Transfer to Another Computer</label>
+                                    <button className="btn btn-secondary" onClick={exportAllClasses}>
+                                        <IExport/> Export All Classes
+                                    </button>
+                                    <label className="btn btn-secondary" style={{cursor:'pointer'}}>
+                                        <IUpload/> Import All Classes
+                                        <input type="file" onChange={importAllClasses} className="hidden" accept=".json"/>
+                                    </label>
+
+                                    {/* Import feedback */}
                                     {importWarnings.length > 0 && (
-                                        <div className="import-warning mt-2">
+                                        <div className="import-warning">
                                             <div className="flex justify-between items-start mb-1">
-                                                <strong>Import notes:</strong>
-                                                <button onClick={() => setImportWarn([])} className="text-yellow-300 hover:text-white ml-2">×</button>
+                                                <strong>{importWarnings[0]}</strong>
+                                                <button onClick={() => setImportWarn([])} className="text-yellow-300 hover:text-white ml-2 leading-none">×</button>
                                             </div>
-                                            <ul className="list-disc ml-4 space-y-0.5">
-                                                {importWarnings.map((w, i) => <li key={i}>{w}</li>)}
-                                            </ul>
+                                            {importWarnings.length > 1 && (
+                                                <ul className="list-disc ml-4 space-y-0.5 mt-1">
+                                                    {importWarnings.slice(1).map((w, i) => <li key={i}>{w}</li>)}
+                                                </ul>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -875,7 +917,21 @@
                         {/* Plan toolbar */}
                         {step === 3 && (
                             <div className="no-print w-full max-w-[900px] mx-auto mb-4 flex flex-col gap-2">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    {/* Class picker — the Monday morning selector */}
+                                    <select
+                                        value={classId}
+                                        onChange={e => switchClass(e.target.value, true)}
+                                        className="px-3 py-2 rounded-lg text-sm font-semibold border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 transition-all outline-none cursor-pointer"
+                                        style={{maxWidth:'160px'}}
+                                    >
+                                        {Object.entries(classIndex).map(([id, name]) => (
+                                            <option key={id} value={id}>{name}</option>
+                                        ))}
+                                    </select>
+
+                                    <div className="w-px h-6 bg-gray-200 mx-1"/>
+
                                     <button onClick={generatePlan} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all active:scale-95" style={{background:'linear-gradient(135deg,#4f46e5,#3b82f6)',boxShadow:'0 2px 8px rgba(59,130,246,0.35)'}}>
                                         <IShuffle/> {seatingPlan && seatingPlan.size > 0 ? 'Reshuffle' : 'Generate Plan'}
                                     </button>
