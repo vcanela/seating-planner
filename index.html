@@ -669,7 +669,7 @@
                         <div className="flex flex-col gap-1 mb-7">
                             {stepLabels.map((label, i) => (
                                 <button key={i} onClick={() => setStep(i+1)} className={`step-btn ${step === i+1 ? 'active' : ''}`}>
-                                    <span className="num">{i+1}</span>{label}
+                                    {label}
                                 </button>
                             ))}
                         </div>
@@ -694,38 +694,8 @@
                                     <div className="flex gap-2">
                                         <button className="icon-btn flex-1" style={{width:'auto'}} onClick={createClass} title="New class"><IPlus/></button>
                                         <button className="icon-btn flex-1" style={{width:'auto'}} onClick={duplicateClass} title="Duplicate this class"><ICopy/></button>
-                                        <label className="icon-btn flex-1" style={{width:'auto', cursor:'pointer'}} title="Import a single class from file">
-                                            <IUpload/>
-                                            <input type="file" onChange={importClass} className="hidden" accept=".json"/>
-                                        </label>
                                         <button className="icon-btn danger flex-1" style={{width:'auto'}} onClick={deleteClass} title="Delete this class"><ITrash/></button>
                                     </div>
-
-                                    {/* Transfer all classes */}
-                                    <div className="divider"/>
-                                    <label className="field-label">Transfer to Another Computer</label>
-                                    <button className="btn btn-secondary" onClick={exportAllClasses}>
-                                        <IExport/> Export All Classes
-                                    </button>
-                                    <label className="btn btn-secondary" style={{cursor:'pointer'}}>
-                                        <IUpload/> Import All Classes
-                                        <input type="file" onChange={importAllClasses} className="hidden" accept=".json"/>
-                                    </label>
-
-                                    {/* Import feedback */}
-                                    {importWarnings.length > 0 && (
-                                        <div className="import-warning">
-                                            <div className="flex justify-between items-start mb-1">
-                                                <strong>{importWarnings[0]}</strong>
-                                                <button onClick={() => setImportWarn([])} className="text-yellow-300 hover:text-white ml-2 leading-none">×</button>
-                                            </div>
-                                            {importWarnings.length > 1 && (
-                                                <ul className="list-disc ml-4 space-y-0.5 mt-1">
-                                                    {importWarnings.slice(1).map((w, i) => <li key={i}>{w}</li>)}
-                                                </ul>
-                                            )}
-                                        </div>
-                                    )}
                                 </div>
 
                                 <div className="divider"/>
@@ -899,6 +869,40 @@
                                         )}
                                     </div>
                                 )}
+                                <div className="divider"/>
+
+                                {/* Import / Export */}
+                                <div className="space-y-2">
+                                    <label className="field-label">Import / Export</label>
+                                    <button className="btn btn-secondary" onClick={exportAllClasses}>
+                                        <IExport/> Export All Classes
+                                    </button>
+                                    <button className="btn btn-secondary" onClick={exportClass}>
+                                        <IExport/> Export This Class
+                                    </button>
+                                    <label className="btn btn-secondary" style={{cursor:'pointer'}}>
+                                        <IUpload/> Import Classes
+                                        <input type="file" onChange={importAllClasses} className="hidden" accept=".json"/>
+                                    </label>
+                                    <label className="btn btn-secondary" style={{cursor:'pointer'}}>
+                                        <IUpload/> Import Single Class
+                                        <input type="file" onChange={importClass} className="hidden" accept=".json"/>
+                                    </label>
+
+                                    {importWarnings.length > 0 && (
+                                        <div className="import-warning">
+                                            <div className="flex justify-between items-start mb-1">
+                                                <strong>{importWarnings[0]}</strong>
+                                                <button onClick={() => setImportWarn([])} className="text-yellow-300 hover:text-white ml-2 leading-none">×</button>
+                                            </div>
+                                            {importWarnings.length > 1 && (
+                                                <ul className="list-disc ml-4 space-y-0.5 mt-1">
+                                                    {importWarnings.slice(1).map((w, i) => <li key={i}>{w}</li>)}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
 
@@ -937,9 +941,6 @@
                                     </button>
                                     <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all active:scale-95">
                                         <IPrint/> Print
-                                    </button>
-                                    <button onClick={exportClass} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all active:scale-95">
-                                        <IExport/> Export
                                     </button>
                                     {seatingPlan && seatingPlan.size > 0 && (
                                         <span className="ml-2 text-xs text-gray-400 flex items-center gap-1" title="Drag students on the grid to swap seats">
