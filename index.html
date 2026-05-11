@@ -14,40 +14,189 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 
     <style>
-        * { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-        #root { width: 100%; }
+        * { font-family: 'Inter', system-ui, -apple-system, sans-serif; box-sizing: border-box; }
+        body { margin: 0; background: #f1f5f9; }
+        #root { width: 100%; min-height: 100vh; display: flex; flex-direction: column; }
 
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
 
-        .sidebar { background: linear-gradient(160deg, #1e293b 0%, #0f172a 100%); }
-
-        /* ── Step nav ── */
-        .step-btn {
-            position: relative; display: flex; align-items: center; gap: 0.65rem;
-            padding: 0.55rem 0.75rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600;
-            transition: all 0.18s ease; color: #64748b; cursor: pointer; border: none;
-            background: transparent; text-align: left; width: 100%;
+        /* ── Top bar ── */
+        .top-bar {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            background: #fff; border-bottom: 1px solid #e2e8f0;
+            flex-wrap: wrap; z-index: 20; position: relative;
         }
-        .step-btn:hover { color: #e2e8f0; background: rgba(255,255,255,0.06); }
-        .step-btn.active { background: rgba(59,130,246,0.15); color: #93c5fd; }
-        .step-btn.active::before {
-            content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
-            width: 3px; border-radius: 99px; background: #3b82f6;
+        .top-bar .app-title {
+            font-weight: 800; font-size: 0.95rem; color: #1e293b;
+            margin-right: 0.5rem; display: flex; align-items: center; gap: 0.45rem;
+            flex-shrink: 0;
         }
-        .step-btn .num {
-            width: 1.5rem; height: 1.5rem; border-radius: 6px;
+        .top-bar .app-title .logo {
+            width: 1.6rem; height: 1.6rem; border-radius: 6px;
+            background: linear-gradient(135deg, #4f46e5, #3b82f6);
             display: flex; align-items: center; justify-content: center;
-            font-size: 0.72rem; font-weight: 700; background: rgba(255,255,255,0.08); flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(59,130,246,0.4); flex-shrink: 0;
         }
-        .step-btn.active .num { background: #3b82f6; color: #fff; box-shadow: 0 2px 6px rgba(59,130,246,0.5); }
+        .tb-select {
+            padding: 0.4rem 0.6rem; border-radius: 8px; border: 1.5px solid #e2e8f0;
+            font-size: 0.82rem; font-weight: 600; color: #334155; background: #fff;
+            outline: none; cursor: pointer; max-width: 180px;
+        }
+        .tb-select:focus { border-color: #3b82f6; }
+        .tb-btn {
+            display: flex; align-items: center; gap: 0.4rem;
+            padding: 0.45rem 0.9rem; border-radius: 8px;
+            font-size: 0.82rem; font-weight: 600; border: none;
+            cursor: pointer; transition: all 0.12s ease; flex-shrink: 0;
+        }
+        .tb-btn:active { transform: scale(0.96); }
+        .tb-btn-primary {
+            background: linear-gradient(135deg, #4f46e5, #3b82f6);
+            color: #fff; box-shadow: 0 2px 8px rgba(59,130,246,0.35);
+        }
+        .tb-btn-primary:hover { box-shadow: 0 3px 12px rgba(59,130,246,0.5); }
+        .tb-btn-secondary {
+            background: #f8fafc; border: 1.5px solid #e2e8f0; color: #475569;
+        }
+        .tb-btn-secondary:hover { background: #f1f5f9; }
+        .tb-divider { width: 1px; height: 1.5rem; background: #e2e8f0; margin: 0 0.25rem; flex-shrink: 0; }
+        .tb-spacer { flex: 1; }
 
-        /* ── Seats ── */
-        .seating-grid { display: grid; gap: 0.45rem; margin: 0 auto; user-select: none; }
+        .gear-btn {
+            width: 2.2rem; height: 2.2rem; border-radius: 8px; border: 1.5px solid #e2e8f0;
+            background: #f8fafc; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: #64748b; transition: all 0.15s; flex-shrink: 0;
+        }
+        .gear-btn:hover { background: #f1f5f9; color: #334155; }
+        .gear-btn.active { background: #eef2ff; border-color: #818cf8; color: #4f46e5; }
+
+        /* ── Setup panel (slide-out) ── */
+        .panel-overlay {
+            position: fixed; inset: 0; background: rgba(15,23,42,0.3);
+            z-index: 30; opacity: 0; pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .panel-overlay.open { opacity: 1; pointer-events: all; }
+
+        .setup-panel {
+            position: fixed; top: 0; left: 0; bottom: 0; width: 340px;
+            background: linear-gradient(160deg, #1e293b 0%, #0f172a 100%);
+            z-index: 31; transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .setup-panel.open { transform: translateX(0); }
+
+        .panel-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 1rem 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.07);
+            flex-shrink: 0;
+        }
+        .panel-header h2 { color: #f1f5f9; font-size: 0.95rem; font-weight: 700; margin: 0; }
+        .panel-close {
+            width: 2rem; height: 2rem; border-radius: 6px; border: none;
+            background: rgba(255,255,255,0.06); color: #94a3b8;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .panel-close:hover { background: rgba(255,255,255,0.12); color: #e2e8f0; }
+
+        /* Panel tab nav */
+        .panel-tabs {
+            display: flex; padding: 0 1.2rem; gap: 0;
+            border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0;
+        }
+        .panel-tab {
+            padding: 0.6rem 0.8rem; font-size: 0.72rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            color: #64748b; border: none; background: none; cursor: pointer;
+            border-bottom: 2px solid transparent; transition: all 0.15s;
+        }
+        .panel-tab:hover { color: #94a3b8; }
+        .panel-tab.active { color: #93c5fd; border-bottom-color: #3b82f6; }
+
+        .panel-body { flex: 1; overflow-y: auto; padding: 1.2rem; }
+
+        /* ── Panel form elements (dark theme) ── */
+        .field {
+            width: 100%; background: rgba(255,255,255,0.05); border: 1.5px solid rgba(255,255,255,0.1);
+            border-radius: 8px; padding: 0.5rem 0.75rem; color: #e2e8f0; font-size: 0.82rem;
+            outline: none; transition: border-color 0.15s, background 0.15s;
+        }
+        .field::placeholder { color: #64748b; }
+        .field:focus { border-color: #3b82f6; background: rgba(59,130,246,0.08); }
+        .field option { background: #1e293b; color: #e2e8f0; }
+        textarea.field { resize: none; }
+
+        .btn {
+            width: 100%; padding: 0.55rem 1rem; border-radius: 8px; font-size: 0.82rem; font-weight: 600;
+            display: flex; align-items: center; justify-content: center; gap: 0.45rem;
+            transition: all 0.15s ease; cursor: pointer; border: none;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-primary { background: linear-gradient(135deg, #4f46e5, #3b82f6); color: #fff; box-shadow: 0 2px 8px rgba(59,130,246,0.4); }
+        .btn-primary:hover:not(:disabled) { box-shadow: 0 4px 14px rgba(59,130,246,0.55); filter: brightness(1.05); }
+        .btn-secondary { background: rgba(255,255,255,0.07); border: 1.5px solid rgba(255,255,255,0.12); color: #cbd5e1; }
+        .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.12); color: #f1f5f9; }
+        .btn-danger { background: rgba(239,68,68,0.1); border: 1.5px solid rgba(239,68,68,0.25); color: #fca5a5; }
+        .btn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.2); }
+
+        .icon-btn {
+            display: flex; align-items: center; justify-content: center;
+            width: 2rem; height: 2rem; border-radius: 6px; border: none; cursor: pointer;
+            transition: all 0.15s ease; flex-shrink: 0;
+            background: rgba(255,255,255,0.06); color: #64748b;
+        }
+        .icon-btn:hover { background: rgba(255,255,255,0.12); color: #cbd5e1; }
+        .icon-btn.danger:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
+        .icon-btn:active { transform: scale(0.92); }
+
+        .field-label {
+            display: block; font-size: 0.68rem; font-weight: 700;
+            letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; margin-bottom: 0.35rem;
+        }
+
+        .divider { height: 1px; background: rgba(255,255,255,0.07); margin: 1rem 0; }
+
+        /* ── Constraint type cards ── */
+        .ctype-card {
+            flex: 1; padding: 0.6rem 0.5rem; border-radius: 8px;
+            border: 1.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
+            cursor: pointer; text-align: center; transition: all 0.15s ease; color: #64748b;
+        }
+        .ctype-card:hover { border-color: rgba(255,255,255,0.2); color: #94a3b8; background: rgba(255,255,255,0.07); }
+        .ctype-card.active { border-color: #3b82f6; background: rgba(59,130,246,0.12); color: #93c5fd; }
+        .ctype-card .ctype-icon { font-size: 1.2rem; margin-bottom: 0.2rem; }
+        .ctype-card .ctype-title { font-size: 0.72rem; font-weight: 700; display: block; }
+        .ctype-card .ctype-sub { font-size: 0.62rem; opacity: 0.7; display: block; margin-top: 0.1rem; }
+
+        .chip {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.75rem; background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 0.35rem 0.6rem; color: #cbd5e1;
+        }
+        .info-box { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); border-radius: 8px; padding: 0.65rem 0.85rem; font-size: 0.75rem; color: #93c5fd; line-height: 1.5; }
+        .import-warning { background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.2); border-radius: 8px; padding: 0.65rem 0.85rem; font-size: 0.72rem; color: #fde68a; line-height: 1.6; }
+
+        .student-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.8rem; color: #cbd5e1; transition: background 0.12s; }
+        .student-row:hover { background: rgba(255,255,255,0.05); }
+        .student-row:hover .remove-btn { opacity: 1; }
+        .remove-btn { opacity: 0; color: #f87171; background: none; border: none; cursor: pointer; padding: 2px; display: flex; align-items: center; transition: opacity 0.15s; }
+
+        /* ── Main grid area ── */
+        .grid-area {
+            flex: 1; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; padding: 1.5rem; overflow: auto;
+        }
+
+        .seating-grid { display: grid; gap: 0.5rem; user-select: none; }
         .seat {
             aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
-            text-align: center; font-size: 0.7rem; font-weight: 600; line-height: 1.2; padding: 3px;
+            text-align: center; font-size: 0.72rem; font-weight: 600; line-height: 1.2; padding: 3px;
             border-radius: 8px; transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
             position: relative; overflow: hidden;
         }
@@ -70,7 +219,7 @@
         }
         .seat.assigned:hover { transform: scale(1.04); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
         .seat.assigned:active { cursor: grabbing; }
-        .seat.not-available { background: transparent; border: 1.5px dashed #e2e8f0; opacity: 0.4; }
+        .seat.not-available { background: transparent; border: 1.5px dashed #e2e8f0; opacity: 0.35; }
         .seat.not-available::after { display: none; }
         .seat.open { background: #e2e8f0; border: 2px dashed #64748b; color: #64748b; }
         .seat.open::after { display: none; }
@@ -79,939 +228,522 @@
         /* ── Board ── */
         .board {
             background: linear-gradient(135deg, #1e3a5f, #1e293b);
-            border-radius: 10px 10px 4px 4px; height: 38px;
+            border-radius: 10px 10px 4px 4px; height: 36px; width: 100%;
             display: flex; align-items: center; justify-content: center;
-            color: rgba(255,255,255,0.5); font-size: 0.65rem; font-weight: 700;
+            color: rgba(255,255,255,0.5); font-size: 0.6rem; font-weight: 700;
             letter-spacing: 0.15em; text-transform: uppercase;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.18); position: relative; overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15); position: relative; overflow: hidden;
+            margin-bottom: 1rem;
         }
         .board::before {
             content: ''; position: absolute; inset: 0;
             background: repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 40px);
         }
 
-        /* ── Form inputs ── */
-        .field {
-            width: 100%; background: rgba(255,255,255,0.05); border: 1.5px solid rgba(255,255,255,0.1);
-            border-radius: 8px; padding: 0.5rem 0.75rem; color: #e2e8f0; font-size: 0.82rem;
-            outline: none; transition: border-color 0.15s, background 0.15s;
-        }
-        .field::placeholder { color: #64748b; }
-        .field:focus { border-color: #3b82f6; background: rgba(59,130,246,0.08); }
-        .field option { background: #1e293b; color: #e2e8f0; }
-        textarea.field { resize: none; }
-
-        /* ── Buttons ── */
-        .btn {
-            width: 100%; padding: 0.55rem 1rem; border-radius: 8px; font-size: 0.82rem; font-weight: 600;
-            display: flex; align-items: center; justify-content: center; gap: 0.45rem;
-            transition: all 0.15s ease; cursor: pointer; border: none;
-        }
-        .btn:active { transform: scale(0.97); }
-        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-        .btn-primary { background: linear-gradient(135deg, #4f46e5, #3b82f6); color: #fff; box-shadow: 0 2px 8px rgba(59,130,246,0.4); }
-        .btn-primary:hover:not(:disabled) { box-shadow: 0 4px 14px rgba(59,130,246,0.55); filter: brightness(1.05); }
-        .btn-secondary { background: rgba(255,255,255,0.07); border: 1.5px solid rgba(255,255,255,0.12); color: #cbd5e1; }
-        .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.12); color: #f1f5f9; }
-        .btn-danger { background: rgba(239,68,68,0.1); border: 1.5px solid rgba(239,68,68,0.25); color: #fca5a5; }
-        .btn-danger:hover:not(:disabled) { background: rgba(239,68,68,0.2); }
-
-        /* ── Icon button (small, no full-width) ── */
-        .icon-btn {
-            display: flex; align-items: center; justify-content: center;
-            width: 2rem; height: 2rem; border-radius: 6px; border: none; cursor: pointer;
-            transition: all 0.15s ease; flex-shrink: 0;
-            background: rgba(255,255,255,0.06); color: #64748b;
-        }
-        .icon-btn:hover { background: rgba(255,255,255,0.12); color: #cbd5e1; }
-        .icon-btn.danger:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
-        .icon-btn:active { transform: scale(0.92); }
-
-        .field-label {
-            display: block; font-size: 0.68rem; font-weight: 700;
-            letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; margin-bottom: 0.35rem;
+        /* ── Reshuffle banner ── */
+        .reshuffle-banner {
+            padding: 0.4rem 1rem; font-size: 0.75rem; font-weight: 500;
+            text-align: center; transition: opacity 0.5s ease;
         }
 
-        /* ── Constraint type cards ── */
-        .ctype-card {
-            flex: 1; padding: 0.6rem 0.5rem; border-radius: 8px;
-            border: 1.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
-            cursor: pointer; text-align: center; transition: all 0.15s ease; color: #64748b;
+        /* ── Empty state ── */
+        .empty-state {
+            text-align: center; color: #94a3b8; padding: 3rem 1rem;
         }
-        .ctype-card:hover { border-color: rgba(255,255,255,0.2); color: #94a3b8; background: rgba(255,255,255,0.07); }
-        .ctype-card.active { border-color: #3b82f6; background: rgba(59,130,246,0.12); color: #93c5fd; }
-        .ctype-card .ctype-icon { font-size: 1.2rem; margin-bottom: 0.2rem; }
-        .ctype-card .ctype-title { font-size: 0.72rem; font-weight: 700; display: block; }
-        .ctype-card .ctype-sub { font-size: 0.62rem; opacity: 0.7; display: block; margin-top: 0.1rem; }
-
-        /* ── Chip ── */
-        .chip {
-            display: flex; justify-content: space-between; align-items: center;
-            font-size: 0.75rem; background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 0.35rem 0.6rem; color: #cbd5e1;
+        .empty-state h3 { font-size: 1.1rem; font-weight: 700; color: #64748b; margin-bottom: 0.5rem; }
+        .empty-state p { font-size: 0.85rem; margin-bottom: 1.5rem; line-height: 1.6; }
+        .empty-state button {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.6rem 1.2rem; border-radius: 8px;
+            font-size: 0.85rem; font-weight: 600; border: none; cursor: pointer;
+            background: linear-gradient(135deg, #4f46e5, #3b82f6); color: #fff;
+            box-shadow: 0 2px 8px rgba(59,130,246,0.35); transition: all 0.15s;
         }
-
-        /* ── Info / warn boxes ── */
-        .info-box { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); border-radius: 8px; padding: 0.65rem 0.85rem; font-size: 0.75rem; color: #93c5fd; line-height: 1.5; }
-        .warn-box { background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.2); border-radius: 8px; padding: 0.65rem 0.85rem; font-size: 0.75rem; color: #fde68a; line-height: 1.5; }
-
-        /* ── Student list ── */
-        .student-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.8rem; color: #cbd5e1; transition: background 0.12s; }
-        .student-row:hover { background: rgba(255,255,255,0.05); }
-        .student-row:hover .remove-btn { opacity: 1; }
-        .remove-btn { opacity: 0; color: #f87171; background: none; border: none; cursor: pointer; padding: 2px; display: flex; align-items: center; transition: opacity 0.15s; }
-
-        /* ── Divider ── */
-        .divider { height: 1px; background: rgba(255,255,255,0.07); margin: 1rem 0; }
-
-        /* ── Import warnings ── */
-        .import-warning { background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.2); border-radius: 8px; padding: 0.65rem 0.85rem; font-size: 0.72rem; color: #fde68a; line-height: 1.6; }
+        .empty-state button:hover { box-shadow: 0 4px 14px rgba(59,130,246,0.55); }
 
         /* ── Print ── */
         @media print {
-            .no-print { display: none !important; }
-            body { background: white; padding: 0; margin: 0; }
-            .sidebar { display: none; }
-            .main-area { padding: 1rem !important; }
+            .no-print, .top-bar, .panel-overlay, .setup-panel { display: none !important; }
+            body { background: white; }
+            .grid-area { padding: 0.5rem; }
             .seat { border: 1.5px solid #999 !important; background: #f9fafb !important; color: #000 !important; box-shadow: none !important; }
             .seat::after { display: none; }
             .seat.assigned { background: #e0f2fe !important; }
             .seat.not-available { opacity: 0 !important; }
-            .board { background: #1e293b !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            .board { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-        .fade-in { animation: fadeIn 0.22s ease both; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+        .fade-in { animation: fadeIn 0.2s ease both; }
     </style>
 </head>
-<body class="bg-slate-200 min-h-screen flex items-center justify-center p-2">
+<body>
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // ── Storage keys ──
-        const CLASSES_KEY = 'sp_classes';
-        const ACTIVE_KEY  = 'sp_active';
-
-        // ── Helpers ──
-        const loadJSON = (key, def) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch { return def; } };
-        const saveJSON = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} };
+        // ── Storage ──
+        const CK = 'sp_classes', AK = 'sp_active';
+        const loadJSON = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
+        const saveJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
         const todayISO = () => new Date().toISOString().split('T')[0];
-        const genId    = () => `cls_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const genId = () => `cls_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
 
-        // ── Schema helpers ──
-        const makeNewClass = (name = 'New Class') => ({
-            version: '1.0',
-            meta: { name, created: todayISO(), modified: todayISO() },
-            room: { rows: 5, cols: 6, seats: [] },
-            students: [],
-            constraints: []
+        // ── Schema ──
+        const makeNew = (name = 'New Class') => ({ version:'1.0', meta:{name,created:todayISO(),modified:todayISO()}, room:{rows:5,cols:6,seats:[]}, students:[], constraints:[] });
+
+        const serialize = ({className,classCreated,rows,cols,selectedSeats,students,constraints,seatingPlan}) => ({
+            version:'1.0',
+            meta:{name:className,created:classCreated,modified:todayISO()},
+            room:{rows,cols,seats:[...selectedSeats]},
+            students:students.map(s=>s.name),
+            constraints:constraints.map(c=>c.type==='front'?{type:'front',student:c.student1}:{type:'separate',students:[c.student1,c.student2]}),
+            _lastPlan:seatingPlan&&seatingPlan.size>0?[...seatingPlan]:null
         });
 
-        const serializeClass = ({ className, classCreated, rows, cols, selectedSeats, students, constraints, seatingPlan }) => ({
-            version: '1.0',
-            meta: { name: className, created: classCreated, modified: todayISO() },
-            room: { rows, cols, seats: [...selectedSeats] },
-            students: students.map(s => s.name),
-            constraints: constraints.map(c =>
-                c.type === 'front'
-                    ? { type: 'front', student: c.student1 }
-                    : { type: 'separate', students: [c.student1, c.student2] }
-            ),
-            _lastPlan: seatingPlan && seatingPlan.size > 0 ? [...seatingPlan] : null
-        });
-
-        const deserializeClass = (schema) => {
-            const rows = Math.max(2, Math.min(15, schema.room?.rows ?? 5));
-            const cols = Math.max(2, Math.min(15, schema.room?.cols ?? 6));
+        const deserialize = (schema) => {
+            const rows=Math.max(2,Math.min(15,schema.room?.rows??5));
+            const cols=Math.max(2,Math.min(15,schema.room?.cols??6));
             return {
-                rows, cols,
-                selectedSeats: new Set(schema.room?.seats ?? []),
-                students: (schema.students ?? [])
-                    .filter(s => s && typeof s === 'string' && s.trim())
-                    .map(name => ({ name: name.trim(), id: Date.now() + Math.random() })),
-                constraints: (schema.constraints ?? []).map(c => ({
-                    id: Date.now() + Math.random(),
-                    type: c.type,
-                    student1: c.type === 'front' ? c.student : c.students?.[0],
-                    student2: c.type === 'separate' ? c.students?.[1] : null
-                })).filter(c => c.student1),
-                seatingPlan: schema._lastPlan ? new Map(schema._lastPlan) : new Map()
+                rows,cols,
+                selectedSeats:new Set(schema.room?.seats??[]),
+                students:(schema.students??[]).filter(s=>s&&typeof s==='string'&&s.trim()).map(name=>({name:name.trim(),id:Date.now()+Math.random()})),
+                constraints:(schema.constraints??[]).map(c=>({id:Date.now()+Math.random(),type:c.type,student1:c.type==='front'?c.student:c.students?.[0],student2:c.type==='separate'?c.students?.[1]:null})).filter(c=>c.student1),
+                seatingPlan:schema._lastPlan?new Map(schema._lastPlan):new Map()
             };
         };
 
-        const validateAndImport = (json) => {
-            const warnings = [];
-            if (!json.version) warnings.push('No version field — assuming 1.0.');
-
-            const rows = Math.max(2, Math.min(15, json.room?.rows ?? 5));
-            const cols = Math.max(2, Math.min(15, json.room?.cols ?? 6));
-            const allValidSeats = new Set(Array.from({ length: rows * cols }, (_, i) => `${Math.floor(i/cols)}-${i%cols}`));
-            const rawSeats = json.room?.seats ?? [];
-            const validSeats = rawSeats.filter(s => allValidSeats.has(s));
-            if (validSeats.length < rawSeats.length)
-                warnings.push(`${rawSeats.length - validSeats.length} seat(s) were outside grid bounds and removed.`);
-
-            const rawStudents = (json.students ?? []).filter(s => s && typeof s === 'string' && s.trim());
-            const uniqueStudents = [...new Map(rawStudents.map(s => [s.trim().toLowerCase(), s.trim()])).values()];
-            if (uniqueStudents.length < rawStudents.length)
-                warnings.push(`${rawStudents.length - uniqueStudents.length} duplicate student name(s) removed.`);
-
-            const studentSet = new Set(uniqueStudents);
-            const validConstraints = [];
-            for (const c of (json.constraints ?? [])) {
-                if (c.type === 'front') {
-                    if (!c.student) { warnings.push('A "front" constraint had no student name — skipped.'); continue; }
-                    if (!studentSet.has(c.student)) { warnings.push(`Front constraint: "${c.student}" not in student list — skipped.`); continue; }
-                    validConstraints.push(c);
-                } else if (c.type === 'separate') {
-                    const [s1, s2] = c.students ?? [];
-                    if (!s1 || !s2) { warnings.push('A "separate" constraint needs 2 students — skipped.'); continue; }
-                    if (s1 === s2) { warnings.push(`Can't separate "${s1}" from themselves — skipped.`); continue; }
-                    if (!studentSet.has(s1)) { warnings.push(`Separate constraint: "${s1}" not in student list — skipped.`); continue; }
-                    if (!studentSet.has(s2)) { warnings.push(`Separate constraint: "${s2}" not in student list — skipped.`); continue; }
-                    validConstraints.push(c);
-                } else {
-                    warnings.push(`Unknown constraint type "${c.type}" — skipped.`);
-                }
+        const validateImport = (json) => {
+            const w=[];
+            if(!json.version)w.push('No version — assuming 1.0.');
+            const rows=Math.max(2,Math.min(15,json.room?.rows??5));
+            const cols=Math.max(2,Math.min(15,json.room?.cols??6));
+            const allValid=new Set(Array.from({length:rows*cols},(_,i)=>`${Math.floor(i/cols)}-${i%cols}`));
+            const rawSeats=json.room?.seats??[];
+            const seats=rawSeats.filter(s=>allValid.has(s));
+            if(seats.length<rawSeats.length)w.push(`${rawSeats.length-seats.length} seat(s) outside bounds removed.`);
+            const rawSt=(json.students??[]).filter(s=>s&&typeof s==='string'&&s.trim());
+            const students=[...new Map(rawSt.map(s=>[s.trim().toLowerCase(),s.trim()])).values()];
+            if(students.length<rawSt.length)w.push(`${rawSt.length-students.length} duplicate(s) removed.`);
+            const stSet=new Set(students);
+            const cons=[];
+            for(const c of(json.constraints??[])){
+                if(c.type==='front'){
+                    if(!c.student||!stSet.has(c.student)){w.push(`Front: "${c.student||'?'}" not found — skipped.`);continue;}
+                    cons.push(c);
+                }else if(c.type==='separate'){
+                    const [s1,s2]=c.students??[];
+                    if(!s1||!s2||s1===s2||!stSet.has(s1)||!stSet.has(s2)){w.push(`Separate: invalid pair — skipped.`);continue;}
+                    cons.push(c);
+                }else{w.push(`Unknown type "${c.type}" skipped.`);}
             }
-
-            return {
-                data: {
-                    version: '1.0',
-                    meta: { name: json.meta?.name || 'Imported Class', created: json.meta?.created || todayISO(), modified: todayISO() },
-                    room: { rows, cols, seats: validSeats },
-                    students: uniqueStudents,
-                    constraints: validConstraints
-                },
-                warnings
-            };
+            return{data:{version:'1.0',meta:{name:json.meta?.name||'Imported',created:json.meta?.created||todayISO(),modified:todayISO()},room:{rows,cols,seats},students,constraints:cons},warnings:w};
         };
 
-        // ── Migrate old localStorage format (pre-multi-class) ──
-        const migrateIfNeeded = () => {
-            const existing = loadJSON(CLASSES_KEY, null);
-            if (existing) return; // already migrated
-            const oldRows = loadJSON('sp_rows', null);
-            if (oldRows === null) return; // no old data either
-            const id = genId();
-            const schema = {
-                version: '1.0',
-                meta: { name: 'My Class', created: todayISO(), modified: todayISO() },
-                room: { rows: oldRows, cols: loadJSON('sp_cols', 6), seats: loadJSON('sp_seats', []) },
-                students: (loadJSON('sp_students', [])).map(s => typeof s === 'string' ? s : s.name).filter(Boolean),
-                constraints: (loadJSON('sp_constraints', [])).map(c =>
-                    c.type === 'front'
-                        ? { type: 'front', student: c.student1 }
-                        : { type: 'separate', students: [c.student1, c.student2] }
-                ).filter(c => c.student || (c.students?.[0] && c.students?.[1])),
-                _lastPlan: loadJSON('sp_plan', null)
-            };
-            saveJSON(CLASSES_KEY, { [id]: schema });
-            saveJSON(ACTIVE_KEY, id);
+        // Migrate old format
+        const migrate = () => {
+            if(loadJSON(CK,null))return;
+            const oldR=loadJSON('sp_rows',null);
+            if(oldR===null)return;
+            const id=genId();
+            saveJSON(CK,{[id]:{version:'1.0',meta:{name:'My Class',created:todayISO(),modified:todayISO()},room:{rows:oldR,cols:loadJSON('sp_cols',6),seats:loadJSON('sp_seats',[])},students:loadJSON('sp_students',[]).map(s=>typeof s==='string'?s:s.name).filter(Boolean),constraints:loadJSON('sp_constraints',[]).map(c=>c.type==='front'?{type:'front',student:c.student1}:{type:'separate',students:[c.student1,c.student2]}).filter(c=>c.student||(c.students?.[0]&&c.students?.[1])),_lastPlan:loadJSON('sp_plan',null)}});
+            saveJSON(AK,id);
         };
 
         // ── Icons ──
-        const IUser    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
-        const IClose   = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
-        const IPrint   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>;
-        const IExport  = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
-        const IUpload  = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
-        const ITrash   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
-        const IShuffle = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>;
-        const IPlus    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
-        const IEye     = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>;
-        const IEyeOff  = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>;
-        const ICopy    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
+        const IUser=()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+        const IX=()=><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+        const IPrint=()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>;
+        const IExport=()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+        const IUpload=()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
+        const ITrash=()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
+        const IShuffle=()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>;
+        const IPlus=()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+        const IEye=()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>;
+        const IEyeOff=()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>;
+        const ICopy=()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
+        const IGear=()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
 
-        // ── Main App ──
-        const SeatingPlanner = () => {
-
-            // ── One-time initialisation ──
-            const [initState] = useState(() => {
-                migrateIfNeeded();
-                let classes = loadJSON(CLASSES_KEY, {});
-                let activeId = loadJSON(ACTIVE_KEY, null);
-
-                if (!classes || Object.keys(classes).length === 0) {
-                    const id = genId();
-                    classes = { [id]: makeNewClass('My Class') };
-                    activeId = id;
-                    saveJSON(CLASSES_KEY, classes);
-                    saveJSON(ACTIVE_KEY, activeId);
-                }
-                if (!activeId || !classes[activeId]) {
-                    activeId = Object.keys(classes)[0];
-                    saveJSON(ACTIVE_KEY, activeId);
-                }
-
-                const active = classes[activeId];
-                const d = deserializeClass(active);
-                const classIndex = Object.fromEntries(Object.entries(classes).map(([id, c]) => [id, c.meta?.name ?? 'Unnamed']));
-                return { classId: activeId, className: active.meta?.name ?? 'My Class', classCreated: active.meta?.created ?? todayISO(), classIndex, ...d };
+        // ── App ──
+        const App = () => {
+            const [init] = useState(() => {
+                migrate();
+                let cls=loadJSON(CK,{}), aid=loadJSON(AK,null);
+                if(!cls||!Object.keys(cls).length){const id=genId();cls={[id]:makeNew('My Class')};aid=id;saveJSON(CK,cls);saveJSON(AK,aid);}
+                if(!aid||!cls[aid]){aid=Object.keys(cls)[0];saveJSON(AK,aid);}
+                const a=cls[aid],d=deserialize(a);
+                return{cid:aid,cname:a.meta?.name??'My Class',ccreated:a.meta?.created??todayISO(),cidx:Object.fromEntries(Object.entries(cls).map(([id,c])=>[id,c.meta?.name??'Unnamed'])),...d};
             });
 
-            // ── State ──
-            const [classId, setClassId]           = useState(initState.classId);
-            const [className, setClassName]        = useState(initState.className);
-            const [classCreated, setClassCreated]  = useState(initState.classCreated);
-            const [classIndex, setClassIndex]      = useState(initState.classIndex); // { id: displayName }
-            const [rows, setRows]                  = useState(initState.rows);
-            const [cols, setCols]                  = useState(initState.cols);
-            const [selectedSeats, setSel]          = useState(initState.selectedSeats);
-            const [students, setStudents]          = useState(initState.students);
-            const [constraints, setCons]           = useState(initState.constraints);
-            const [seatingPlan, setPlan]           = useState(initState.seatingPlan);
-            const [step, setStep]                  = useState(1);
-            const [errorMsg, setError]             = useState('');
-            const [cType, setCType]                = useState('front');
-            const [cS1, setCS1]                    = useState('');
-            const [cS2, setCS2]                    = useState('');
-            const [isDragging, setDragging]        = useState(false);
-            const [dragMode, setDragMode]          = useState(true);
-            const [draggedStudent, setDraggedStu]  = useState(null);
-            const [studentInput, setStudentInput]  = useState('');
-            const [hideConstraints, setHideC]      = useState(false);
-            const [reshuffleSim, setReshuffleSim]  = useState(null);
-            const [importWarnings, setImportWarn]  = useState([]);
+            const [classId,setClassId]=useState(init.cid);
+            const [className,setClassName]=useState(init.cname);
+            const [classCreated,setClassCreated]=useState(init.ccreated);
+            const [classIndex,setClassIndex]=useState(init.cidx);
+            const [rows,setRows]=useState(init.rows);
+            const [cols,setCols]=useState(init.cols);
+            const [seats,setSeats]=useState(init.selectedSeats);
+            const [students,setStudents]=useState(init.students);
+            const [constraints,setCons]=useState(init.constraints);
+            const [plan,setPlan]=useState(init.seatingPlan);
 
-            const skipSave = useRef(true);
+            const [panelOpen,setPanelOpen]=useState(()=>init.students.length===0||init.selectedSeats.size===0);
+            const [panelTab,setPanelTab]=useState('layout');
+            const [editing,setEditing]=useState(false); // true when in grid-paint mode
+            const [cType,setCType]=useState('front');
+            const [cS1,setCS1]=useState('');
+            const [cS2,setCS2]=useState('');
+            const [isDragging,setDragging]=useState(false);
+            const [dragMode,setDragMode]=useState(true);
+            const [draggedStudent,setDraggedStu]=useState(null);
+            const [studentInput,setStudentInput]=useState('');
+            const [hideC,setHideC]=useState(false);
+            const [reshuffleSim,setReshuffleSim]=useState(null);
+            const [importWarn,setImportWarn]=useState([]);
+            const [errorMsg,setError]=useState('');
 
-            // ── Auto-save ──
-            useEffect(() => {
-                if (skipSave.current) { skipSave.current = false; return; }
-                const classes = loadJSON(CLASSES_KEY, {});
-                classes[classId] = serializeClass({ className, classCreated, rows, cols, selectedSeats, students, constraints, seatingPlan });
-                saveJSON(CLASSES_KEY, classes);
-                saveJSON(ACTIVE_KEY, classId);
-            }, [classId, className, rows, cols, selectedSeats, students, constraints, seatingPlan]);
+            const skipSave=useRef(true);
+
+            // Auto-save
+            useEffect(()=>{
+                if(skipSave.current){skipSave.current=false;return;}
+                const cls=loadJSON(CK,{});
+                cls[classId]=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan});
+                saveJSON(CK,cls);saveJSON(AK,classId);
+            },[classId,className,rows,cols,seats,students,constraints,plan]);
+
+            // Mouse up listener
+            useEffect(()=>{const h=()=>setDragging(false);window.addEventListener('mouseup',h);return()=>window.removeEventListener('mouseup',h);},[]);
 
             // ── Class management ──
-            const loadClass = (id, classes, keepStep = false) => {
-                const schema = classes[id];
-                if (!schema) return;
-                const d = deserializeClass(schema);
-                setClassId(id);
-                setClassName(schema.meta?.name ?? 'Unnamed');
-                setClassCreated(schema.meta?.created ?? todayISO());
-                setRows(d.rows); setCols(d.cols); setSel(d.selectedSeats);
-                setStudents(d.students); setCons(d.constraints); setPlan(d.seatingPlan);
-                setReshuffleSim(null); setError('');
-                if (!keepStep) setStep(1);
-                saveJSON(ACTIVE_KEY, id);
+            const loadCls=(id,cls)=>{
+                const s=cls[id];if(!s)return;const d=deserialize(s);
+                setClassId(id);setClassName(s.meta?.name??'Unnamed');setClassCreated(s.meta?.created??todayISO());
+                setRows(d.rows);setCols(d.cols);setSeats(d.selectedSeats);
+                setStudents(d.students);setCons(d.constraints);setPlan(d.seatingPlan);
+                setReshuffleSim(null);setError('');setEditing(false);
+                saveJSON(AK,id);
+                if(d.students.length===0||d.selectedSeats.size===0){setPanelOpen(true);setPanelTab(d.selectedSeats.size===0?'layout':'students');}
             };
+            const switchCls=(id)=>{const cls=loadJSON(CK,{});loadCls(id,cls);};
+            const createCls=()=>{const id=genId(),s=makeNew('New Class'),cls=loadJSON(CK,{});cls[id]=s;saveJSON(CK,cls);setClassIndex(p=>({...p,[id]:s.meta.name}));loadCls(id,cls);};
+            const dupCls=()=>{const id=genId(),cur=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan}),copy={...cur,meta:{...cur.meta,name:`${className} (copy)`,created:todayISO(),modified:todayISO()},_lastPlan:null};const cls=loadJSON(CK,{});cls[id]=copy;saveJSON(CK,cls);setClassIndex(p=>({...p,[id]:copy.meta.name}));loadCls(id,cls);};
+            const delCls=()=>{if(!window.confirm(`Delete "${className}"?`))return;const cls=loadJSON(CK,{});delete cls[classId];const rem=Object.keys(cls);if(!rem.length){const nid=genId();cls[nid]=makeNew('My Class');rem.push(nid);}saveJSON(CK,cls);setClassIndex(Object.fromEntries(Object.entries(cls).map(([id,c])=>[id,c.meta?.name??'Unnamed'])));loadCls(rem[0],cls);};
+            const renameCls=(n)=>{const name=n.trim()||'Unnamed Class';setClassName(name);setClassIndex(p=>({...p,[classId]:name}));};
 
-            const switchClass = (id, keepStep = false) => {
-                const classes = loadJSON(CLASSES_KEY, {});
-                loadClass(id, classes, keepStep);
-            };
+            // ── Export / Import ──
+            const exportCls=()=>{const s=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan});delete s._lastPlan;const b=new Blob([JSON.stringify(s,null,2)],{type:'application/json'});Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:`${className.replace(/[^a-z0-9]/gi,'-').toLowerCase()}-${todayISO()}.json`}).click();};
+            const exportAll=()=>{const cls=loadJSON(CK,{});const p={version:'1.0',type:'collection',exported:todayISO(),classes:Object.values(cls).map(c=>{const{_lastPlan,...r}=c;return r;})};const b=new Blob([JSON.stringify(p,null,2)],{type:'application/json'});Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:`all-classes-${todayISO()}.json`}).click();};
+            const importAll=(e)=>{const f=e.target.files[0];if(!f)return;e.target.value='';const r=new FileReader();r.onload=ev=>{try{const j=JSON.parse(ev.target.result);if(j.type==='collection'&&Array.isArray(j.classes)){const cls=loadJSON(CK,{});const ws=[];let n=0;for(const cd of j.classes){const{data,warnings}=validateImport(cd);cls[genId()]=data;n++;if(warnings.length)ws.push(`${data.meta.name}: ${warnings.join(' ')}`);}saveJSON(CK,cls);setClassIndex(Object.fromEntries(Object.entries(cls).map(([id,c])=>[id,c.meta?.name??'Unnamed'])));setImportWarn(ws.length?[`${n} class${n!==1?'es':''} imported:`, ...ws]:[`${n} class${n!==1?'es':''} imported.`]);}else{const{data,warnings}=validateImport(j);const id=genId(),cls=loadJSON(CK,{});cls[id]=data;saveJSON(CK,cls);setClassIndex(p=>({...p,[id]:data.meta.name}));setImportWarn(warnings.length?warnings:[`"${data.meta.name}" imported.`]);loadCls(id,cls);}}catch{setError('Invalid file.');}};r.readAsText(f);};
 
-            const createClass = () => {
-                const id = genId();
-                const schema = makeNewClass('New Class');
-                const classes = loadJSON(CLASSES_KEY, {});
-                classes[id] = schema;
-                saveJSON(CLASSES_KEY, classes);
-                setClassIndex(prev => ({ ...prev, [id]: schema.meta.name }));
-                loadClass(id, classes);
-            };
-
-            const duplicateClass = () => {
-                const id = genId();
-                const current = serializeClass({ className, classCreated, rows, cols, selectedSeats, students, constraints, seatingPlan });
-                const copy = { ...current, meta: { ...current.meta, name: `${className} (copy)`, created: todayISO(), modified: todayISO() }, _lastPlan: null };
-                const classes = loadJSON(CLASSES_KEY, {});
-                classes[id] = copy;
-                saveJSON(CLASSES_KEY, classes);
-                setClassIndex(prev => ({ ...prev, [id]: copy.meta.name }));
-                loadClass(id, classes);
-            };
-
-            const deleteClass = () => {
-                if (!window.confirm(`Delete "${className}"? This cannot be undone.`)) return;
-                const classes = loadJSON(CLASSES_KEY, {});
-                delete classes[classId];
-                const remaining = Object.keys(classes);
-                if (remaining.length === 0) {
-                    const newId = genId();
-                    classes[newId] = makeNewClass('My Class');
-                    remaining.push(newId);
-                }
-                saveJSON(CLASSES_KEY, classes);
-                setClassIndex(Object.fromEntries(Object.entries(classes).map(([id, c]) => [id, c.meta?.name ?? 'Unnamed'])));
-                loadClass(remaining[0], classes);
-            };
-
-            const renameClass = (newName) => {
-                const name = newName.trim() || 'Unnamed Class';
-                setClassName(name);
-                setClassIndex(prev => ({ ...prev, [classId]: name }));
-            };
-
-            // ── Export ──
-            const exportClass = () => {
-                const schema = serializeClass({ className, classCreated, rows, cols, selectedSeats, students, constraints, seatingPlan });
-                delete schema._lastPlan; // not part of the public schema
-                const blob = new Blob([JSON.stringify(schema, null, 2)], { type: 'application/json' });
-                const slug = className.replace(/[^a-z0-9]/gi, '-').toLowerCase();
-                const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${slug}-${todayISO()}.json` });
-                a.click();
-            };
-
-            // ── Export / Import all classes ──
-            const exportAllClasses = () => {
-                const classes = loadJSON(CLASSES_KEY, {});
-                const payload = {
-                    version: '1.0',
-                    type: 'collection',
-                    exported: todayISO(),
-                    classes: Object.values(classes).map(c => {
-                        const { _lastPlan, ...rest } = c;
-                        return rest;
-                    })
-                };
-                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-                const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `all-classes-${todayISO()}.json` });
-                a.click();
-            };
-
-            const importAllClasses = (e) => {
-                const file = e.target.files[0]; if (!file) return;
-                e.target.value = '';
-                const reader = new FileReader();
-                reader.onload = ev => {
-                    try {
-                        const json = JSON.parse(ev.target.result);
-                        if (json.type !== 'collection' || !Array.isArray(json.classes))
-                            return setError('This looks like a single-class file — use the single import button instead.');
-                        const classes = loadJSON(CLASSES_KEY, {});
-                        const allWarnings = [];
-                        let count = 0;
-                        for (const classData of json.classes) {
-                            const { data, warnings } = validateAndImport(classData);
-                            classes[genId()] = data;
-                            count++;
-                            if (warnings.length) allWarnings.push(`${data.meta.name}: ${warnings.join(' ')}`);
-                        }
-                        saveJSON(CLASSES_KEY, classes);
-                        setClassIndex(Object.fromEntries(Object.entries(classes).map(([id, c]) => [id, c.meta?.name ?? 'Unnamed'])));
-                        setImportWarn(allWarnings.length
-                            ? [`${count} class${count!==1?'es':''} imported with notes:`, ...allWarnings]
-                            : [`${count} class${count!==1?'es':''} imported successfully.`]
-                        );
-                    } catch { setError('Could not read file — invalid JSON.'); }
-                };
-                reader.readAsText(file);
-            };
-
-            // ── Import single class ──
-            const importClass = (e) => {
-                const file = e.target.files[0]; if (!file) return;
-                e.target.value = '';
-                const reader = new FileReader();
-                reader.onload = ev => {
-                    try {
-                        const json = JSON.parse(ev.target.result);
-                        const { data, warnings } = validateAndImport(json);
-                        const id = genId();
-                        const classes = loadJSON(CLASSES_KEY, {});
-                        classes[id] = data;
-                        saveJSON(CLASSES_KEY, classes);
-                        setClassIndex(prev => ({ ...prev, [id]: data.meta.name }));
-                        setImportWarn(warnings);
-                        loadClass(id, classes);
-                    } catch { setError('Could not read file — invalid JSON.'); }
-                };
-                reader.readAsText(file);
-            };
-
-            // ── Layout ──
-            const onSeatDown = (id) => {
-                if (step !== 1) return;
-                setDragging(true);
-                const s = new Set(selectedSeats);
-                const add = !s.has(id); setDragMode(add);
-                add ? s.add(id) : s.delete(id);
-                setSel(s); setPlan(new Map());
-            };
-            const onSeatEnter = (id) => {
-                if (!isDragging || step !== 1) return;
-                const s = new Set(selectedSeats);
-                dragMode ? s.add(id) : s.delete(id);
-                setSel(s);
-            };
-            const onMouseUp = () => setDragging(false);
-            useEffect(() => { window.addEventListener('mouseup', onMouseUp); return () => window.removeEventListener('mouseup', onMouseUp); }, []);
+            // ── Grid editing ──
+            const onSeatDown=(id)=>{if(!editing)return;setDragging(true);const s=new Set(seats);const add=!s.has(id);setDragMode(add);add?s.add(id):s.delete(id);setSeats(s);setPlan(new Map());};
+            const onSeatEnter=(id)=>{if(!isDragging||!editing)return;const s=new Set(seats);dragMode?s.add(id):s.delete(id);setSeats(s);};
 
             // ── Students ──
-            const addStudents = (raw) => {
-                const names = raw.split(/[,;\n]/).map(n => n.trim()).filter(Boolean);
-                if (!names.length) return;
-                const existing = new Set(students.map(s => s.name.toLowerCase()));
-                const fresh = names.filter(n => !existing.has(n.toLowerCase()));
-                setError(fresh.length < names.length ? 'Duplicate names were skipped.' : '');
-                setStudents(prev => [...prev, ...fresh.map(name => ({ name, id: Date.now() + Math.random() }))]);
-                setPlan(new Map());
-            };
-            const removeStudent = (id) => {
-                setStudents(students.filter(s => s.id !== id));
-                setCons(constraints.filter(c => c.student1 !== students.find(s=>s.id===id)?.name && c.student2 !== students.find(s=>s.id===id)?.name));
-                setPlan(new Map());
-            };
+            const addStudents=(raw)=>{const names=raw.split(/[,;\n]/).map(n=>n.trim()).filter(Boolean);if(!names.length)return;const ex=new Set(students.map(s=>s.name.toLowerCase()));const fresh=names.filter(n=>!ex.has(n.toLowerCase()));setError(fresh.length<names.length?'Duplicates skipped.':'');setStudents(p=>[...p,...fresh.map(name=>({name,id:Date.now()+Math.random()}))]);setPlan(new Map());};
+            const removeStudent=(id)=>{const st=students.find(s=>s.id===id);setStudents(students.filter(s=>s.id!==id));if(st)setCons(constraints.filter(c=>c.student1!==st.name&&c.student2!==st.name));setPlan(new Map());};
 
             // ── Constraints ──
-            const addConstraint = () => {
-                if (!cS1 || (cType === 'separate' && !cS2)) return;
-                const nc = { id: Date.now(), type: cType, student1: cS1, student2: cType === 'separate' ? cS2 : null };
-                const dup = constraints.some(c =>
-                    c.type === nc.type &&
-                    ((c.student1 === nc.student1 && c.student2 === nc.student2) ||
-                     (c.type === 'separate' && c.student1 === nc.student2 && c.student2 === nc.student1))
-                );
-                if (!dup) { setCons([...constraints, nc]); setCS1(''); setCS2(''); setPlan(new Map()); }
-            };
+            const addConstraint=()=>{if(!cS1||(cType==='separate'&&!cS2))return;const nc={id:Date.now(),type:cType,student1:cS1,student2:cType==='separate'?cS2:null};const dup=constraints.some(c=>c.type===nc.type&&((c.student1===nc.student1&&c.student2===nc.student2)||(c.type==='separate'&&c.student1===nc.student2&&c.student2===nc.student1)));if(!dup){setCons([...constraints,nc]);setCS1('');setCS2('');setPlan(new Map());}};
 
-            // ── Plan generation ──
-            const generatePlan = () => {
-                if (students.length > selectedSeats.size) return setError(`Not enough seats — need ${students.length - selectedSeats.size} more.`);
-                let best = null, bestScore = -Infinity;
-                for (let i = 0; i < 200; i++) {
-                    const avail = [...selectedSeats];
-                    const pool = [...students].sort(() => Math.random() - 0.5);
-                    const plan = new Map();
-                    let score = 0;
-
-                    // Front constraints: row-by-row fallback, separation wins
-                    for (const req of constraints.filter(c => c.type === 'front')) {
-                        const idx = pool.findIndex(s => s.name === req.student1);
-                        if (idx === -1) continue;
-                        const conflictSeats = constraints
-                            .filter(c => c.type === 'separate' && (c.student1 === req.student1 || c.student2 === req.student1))
-                            .map(c => plan.get(c.student1 === req.student1 ? c.student2 : c.student1))
-                            .filter(Boolean);
-                        const sortedRows = [...new Set(avail.map(id => parseInt(id.split('-')[0])))].sort((a, b) => a - b);
-                        let chosen = null;
-                        for (const row of sortedRows) {
-                            const rowSeats = avail.filter(id => parseInt(id.split('-')[0]) === row);
-                            const valid = rowSeats.filter(seat => conflictSeats.every(cs => {
-                                const [r,c] = seat.split('-').map(Number), [cr,cc] = cs.split('-').map(Number);
-                                return Math.sqrt((r-cr)**2+(c-cc)**2) >= 1.5;
-                            }));
-                            if (valid.length) { chosen = valid[Math.floor(Math.random()*valid.length)]; score += Math.max(100-row*30,10); break; }
-                        }
-                        if (!chosen && avail.length) { chosen = avail.reduce((b,id)=>parseInt(id.split('-')[0])<parseInt(b.split('-')[0])?id:b); score -= 20; }
-                        if (chosen) { plan.set(pool[idx].name, chosen); avail.splice(avail.indexOf(chosen),1); pool.splice(idx,1); }
+            // ── Generate ──
+            const generate=()=>{
+                if(students.length>seats.size)return setError(`Need ${students.length-seats.size} more seats.`);
+                if(students.length===0)return setError('Add students first.');
+                if(seats.size===0)return setError('Set up the room layout first.');
+                let best=null,bestScore=-Infinity;
+                for(let i=0;i<200;i++){
+                    const avail=[...seats],pool=[...students].sort(()=>Math.random()-0.5),p=new Map();let score=0;
+                    for(const req of constraints.filter(c=>c.type==='front')){
+                        const idx=pool.findIndex(s=>s.name===req.student1);if(idx===-1)continue;
+                        const conflicts=constraints.filter(c=>c.type==='separate'&&(c.student1===req.student1||c.student2===req.student1)).map(c=>p.get(c.student1===req.student1?c.student2:c.student1)).filter(Boolean);
+                        const sRows=[...new Set(avail.map(id=>parseInt(id.split('-')[0])))].sort((a,b)=>a-b);
+                        let chosen=null;
+                        for(const row of sRows){const rs=avail.filter(id=>parseInt(id.split('-')[0])===row);const valid=rs.filter(seat=>conflicts.every(cs=>{const[r,c]=seat.split('-').map(Number),[cr,cc]=cs.split('-').map(Number);return Math.sqrt((r-cr)**2+(c-cc)**2)>=1.5;}));if(valid.length){chosen=valid[Math.floor(Math.random()*valid.length)];score+=Math.max(100-row*30,10);break;}}
+                        if(!chosen&&avail.length){chosen=avail.reduce((b,id)=>parseInt(id.split('-')[0])<parseInt(b.split('-')[0])?id:b);score-=20;}
+                        if(chosen){p.set(pool[idx].name,chosen);avail.splice(avail.indexOf(chosen),1);pool.splice(idx,1);}
                     }
-
-                    // Fill rest randomly
-                    for (const s of pool) { const idx = Math.floor(Math.random()*avail.length); plan.set(s.name, avail[idx]); avail.splice(idx,1); }
-
-                    // Score separation
-                    for (const req of constraints.filter(c => c.type === 'separate')) {
-                        const s1 = plan.get(req.student1), s2 = plan.get(req.student2);
-                        if (s1 && s2) {
-                            const [r1,c1]=s1.split('-').map(Number),[r2,c2]=s2.split('-').map(Number);
-                            const d = Math.sqrt((r2-r1)**2+(c2-c1)**2);
-                            score += d < 1.5 ? -100 : d < 2.5 ? -20 : 20;
-                        }
-                    }
-                    if (score > bestScore) { bestScore = score; best = plan; }
+                    for(const s of pool){const idx=Math.floor(Math.random()*avail.length);p.set(s.name,avail[idx]);avail.splice(idx,1);}
+                    for(const req of constraints.filter(c=>c.type==='separate')){const s1=p.get(req.student1),s2=p.get(req.student2);if(s1&&s2){const[r1,c1]=s1.split('-').map(Number),[r2,c2]=s2.split('-').map(Number);const d=Math.sqrt((r2-r1)**2+(c2-c1)**2);score+=d<1.5?-100:d<2.5?-20:20;}}
+                    if(score>bestScore){bestScore=score;best=p;}
                 }
-
-                if (seatingPlan && seatingPlan.size > 0 && best) {
-                    let same = 0;
-                    for (const [name, seat] of best.entries()) { if (seatingPlan.get(name) === seat) same++; }
-                    setReshuffleSim(Math.round(((best.size - same) / best.size) * 100));
-                } else { setReshuffleSim(null); }
-
-                setPlan(best); setError('');
+                if(plan&&plan.size>0&&best){let same=0;for(const[n,s]of best.entries())if(plan.get(n)===s)same++;setReshuffleSim(Math.round(((best.size-same)/best.size)*100));}else setReshuffleSim(null);
+                setPlan(best);setError('');setEditing(false);
             };
 
             // ── Drag swap ──
-            const onDragStart = (e, name, seatId) => { if (step !== 3) return; setDraggedStu({ name, fromSeat: seatId }); e.dataTransfer.effectAllowed='move'; };
-            const onDragOver  = (e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); };
-            const onDragLeave = (e) => { e.currentTarget.classList.remove('drag-over'); };
-            const onDrop = (e, targetId) => {
-                e.preventDefault(); e.currentTarget.classList.remove('drag-over');
-                if (!draggedStudent) return;
-                const p = new Map(seatingPlan);
-                let targetName = null;
-                for (const [n, s] of p.entries()) { if (s === targetId) targetName = n; }
-                p.set(draggedStudent.name, targetId);
-                if (targetName) p.set(targetName, draggedStudent.fromSeat);
-                setPlan(p); setDraggedStu(null);
-            };
+            const onDragStart=(e,name,sid)=>{if(editing)return;setDraggedStu({name,fromSeat:sid});e.dataTransfer.effectAllowed='move';};
+            const onDragOver=(e)=>{e.preventDefault();e.currentTarget.classList.add('drag-over');};
+            const onDragLeave=(e)=>{e.currentTarget.classList.remove('drag-over');};
+            const onDrop=(e,tid)=>{e.preventDefault();e.currentTarget.classList.remove('drag-over');if(!draggedStudent)return;const p=new Map(plan);let tn=null;for(const[n,s]of p.entries())if(s===tid)tn=n;p.set(draggedStudent.name,tid);if(tn)p.set(tn,draggedStudent.fromSeat);setPlan(p);setDraggedStu(null);};
 
-            const stepLabels = ['Layout', 'Students', 'Plan'];
+            // Computed
+            const isReady = students.length > 0 && seats.size > 0;
+            const hasPlan = plan && plan.size > 0;
 
             return (
-                <div className="flex flex-col md:flex-row rounded-2xl overflow-hidden shadow-2xl" style={{width:'min(1400px,100%)', minHeight:'680px', height:'96vh'}}>
-
-                    {/* ═══ SIDEBAR ═══ */}
-                    <div className="sidebar no-print w-full md:w-[320px] flex-shrink-0 flex flex-col p-6 overflow-y-auto" style={{maxHeight:'96vh'}}>
-
-                        {/* Title */}
-                        <div className="mb-7">
-                            <div className="flex items-center gap-2 mb-1">
-                                <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0" style={{boxShadow:'0 2px 8px rgba(59,130,246,0.5)'}}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                                        <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-                                    </svg>
-                                </div>
-                                <span className="text-white font-bold text-lg tracking-tight">Seating Planner</span>
+                <>
+                    {/* ── TOP BAR ── */}
+                    <div className="top-bar no-print">
+                        <div className="app-title">
+                            <div className="logo">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                                    <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                                </svg>
                             </div>
-                            <p className="text-slate-500 text-xs ml-9 truncate" title={className}>{className}</p>
+                            Seating Planner
                         </div>
 
-                        {/* Step nav */}
-                        <div className="flex flex-col gap-1 mb-7">
-                            {stepLabels.map((label, i) => (
-                                <button key={i} onClick={() => setStep(i+1)} className={`step-btn ${step === i+1 ? 'active' : ''}`}>
-                                    {label}
+                        <div className="tb-divider"/>
+
+                        <select className="tb-select" value={classId} onChange={e=>switchCls(e.target.value)}>
+                            {Object.entries(classIndex).map(([id,name])=><option key={id} value={id}>{name}</option>)}
+                        </select>
+
+                        <div className="tb-divider"/>
+
+                        <button className="tb-btn tb-btn-primary" onClick={generate} disabled={!isReady}>
+                            <IShuffle/> {hasPlan ? 'Reshuffle' : 'Generate'}
+                        </button>
+                        <button className="tb-btn tb-btn-secondary" onClick={()=>window.print()} disabled={!hasPlan}>
+                            <IPrint/> Print
+                        </button>
+
+                        {hasPlan && <span style={{fontSize:'0.72rem',color:'#94a3b8',marginLeft:'0.25rem'}} title="Drag students on the grid to swap">Drag to swap</span>}
+
+                        <div className="tb-spacer"/>
+
+                        {errorMsg && <span style={{fontSize:'0.75rem',color:'#ef4444',fontWeight:600}}>{errorMsg}</span>}
+
+                        <button className={`gear-btn ${panelOpen?'active':''}`} onClick={()=>{setPanelOpen(p=>!p);setEditing(false);}} title="Setup">
+                            <IGear/>
+                        </button>
+                    </div>
+
+                    {/* ── Reshuffle banner ── */}
+                    {reshuffleSim !== null && (()=>{
+                        const m = reshuffleSim>=65?{t:`${reshuffleSim}% of seats changed`,c:'#166534',bg:'#f0fdf4'}:reshuffleSim>=35?{t:`${reshuffleSim}% changed — moderate variation`,c:'#92400e',bg:'#fffbeb'}:{t:`${reshuffleSim}% changed — constraints limit variation`,c:'#b91c1c',bg:'#fef2f2'};
+                        return <div className="reshuffle-banner no-print" style={{background:m.bg,color:m.c}}>{m.t}</div>;
+                    })()}
+
+                    {/* ── SETUP PANEL ── */}
+                    <div className={`panel-overlay ${panelOpen?'open':''}`} onClick={()=>{setPanelOpen(false);setEditing(false);}}/>
+                    <div className={`setup-panel ${panelOpen?'open':''}`}>
+                        <div className="panel-header">
+                            <h2>Class Setup</h2>
+                            <button className="panel-close" onClick={()=>{setPanelOpen(false);setEditing(false);}}><IX/></button>
+                        </div>
+                        <div className="panel-tabs">
+                            {['layout','students','constraints','data'].map(t=>(
+                                <button key={t} className={`panel-tab ${panelTab===t?'active':''}`} onClick={()=>{setPanelTab(t);if(t!=='layout')setEditing(false);}}>
+                                    {t==='data'?'Import/Export':t}
                                 </button>
                             ))}
                         </div>
+                        <div className="panel-body">
 
-                        {/* ─ Step 1: Layout ─ */}
-                        {step === 1 && (
-                            <div className="space-y-4 fade-in flex-1">
-
-                                {/* Class library */}
-                                <div className="space-y-2">
-                                    <label className="field-label">My Classes</label>
-
-                                    {/* Switch + rename */}
-                                    <select className="field" value={classId} onChange={e => switchClass(e.target.value)}>
-                                        {Object.entries(classIndex).map(([id, name]) => (
-                                            <option key={id} value={id}>{name}</option>
-                                        ))}
-                                    </select>
-                                    <input type="text" className="field" value={className} onChange={e => renameClass(e.target.value)} placeholder="Class name…"/>
-
-                                    {/* Per-class actions */}
-                                    <div className="flex gap-2">
-                                        <button className="icon-btn flex-1" style={{width:'auto'}} onClick={createClass} title="New class"><IPlus/></button>
-                                        <button className="icon-btn flex-1" style={{width:'auto'}} onClick={duplicateClass} title="Duplicate this class"><ICopy/></button>
-                                        <button className="icon-btn danger flex-1" style={{width:'auto'}} onClick={deleteClass} title="Delete this class"><ITrash/></button>
+                            {/* ─── Layout tab ─── */}
+                            {panelTab==='layout' && (
+                                <div className="space-y-4 fade-in">
+                                    <div className="space-y-2">
+                                        <label className="field-label">Class</label>
+                                        <select className="field" value={classId} onChange={e=>switchCls(e.target.value)}>
+                                            {Object.entries(classIndex).map(([id,name])=><option key={id} value={id}>{name}</option>)}
+                                        </select>
+                                        <input type="text" className="field" value={className} onChange={e=>renameCls(e.target.value)} placeholder="Class name…"/>
+                                        <div className="flex gap-2">
+                                            <button className="icon-btn flex-1" style={{width:'auto'}} onClick={createCls} title="New"><IPlus/></button>
+                                            <button className="icon-btn flex-1" style={{width:'auto'}} onClick={dupCls} title="Duplicate"><ICopy/></button>
+                                            <button className="icon-btn danger flex-1" style={{width:'auto'}} onClick={delCls} title="Delete"><ITrash/></button>
+                                        </div>
                                     </div>
-                                </div>
-
-                                <div className="divider"/>
-
-                                {/* Grid config */}
-                                <div className="info-box">
-                                    Click or drag across the grid to mark available seats.
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="field-label">Rows</label>
-                                        <input type="number" value={rows} onChange={e => { setRows(Math.max(2,Math.min(15,Number(e.target.value)))); setPlan(new Map()); }} className="field" min="2" max="15"/>
+                                    <div className="divider"/>
+                                    <label className="field-label">Room Layout</label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="field-label">Rows</label>
+                                            <input type="number" value={rows} onChange={e=>{setRows(Math.max(2,Math.min(15,Number(e.target.value))));setPlan(new Map());}} className="field" min="2" max="15"/>
+                                        </div>
+                                        <div>
+                                            <label className="field-label">Columns</label>
+                                            <input type="number" value={cols} onChange={e=>{setCols(Math.max(2,Math.min(15,Number(e.target.value))));setPlan(new Map());}} className="field" min="2" max="15"/>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="field-label">Columns</label>
-                                        <input type="number" value={cols} onChange={e => { setCols(Math.max(2,Math.min(15,Number(e.target.value)))); setPlan(new Map()); }} className="field" min="2" max="15"/>
-                                    </div>
-                                </div>
-                                <button className="btn btn-danger" onClick={() => { if(window.confirm('Deselect all seats?')) { setSel(new Set()); setPlan(new Map()); }}}>
-                                    <ITrash/> Clear Grid
-                                </button>
-                            </div>
-                        )}
-
-                        {/* ─ Step 2: Students ─ */}
-                        {step === 2 && (
-                            <div className="space-y-3 fade-in flex flex-col flex-1">
-                                <div className="info-box">
-                                    Enter names separated by commas or new lines, then press <strong>Enter</strong> to add.
-                                </div>
-                                <div>
-                                    <label className="field-label">Add Students</label>
-                                    <textarea
-                                        className="field h-24"
-                                        placeholder="e.g. John, Sarah, Mike, Emily"
-                                        value={studentInput}
-                                        onChange={e => setStudentInput(e.target.value)}
-                                        onKeyDown={e => { if(e.key==='Enter'){e.preventDefault();addStudents(studentInput);setStudentInput('');} }}
-                                    />
-                                    <button className="btn btn-primary mt-2" onClick={() => { addStudents(studentInput); setStudentInput(''); }}>
-                                        <IPlus/> Add to List
+                                    <button className={`btn ${editing?'btn-primary':'btn-secondary'}`} onClick={()=>setEditing(e=>!e)}>
+                                        {editing ? 'Done Editing Layout' : 'Edit Seat Layout'}
                                     </button>
-                                </div>
-                                <div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-black/10 min-h-[80px] max-h-[220px]">
-                                    {students.length === 0
-                                        ? <p className="text-slate-500 text-xs text-center py-5 italic">No students added yet.</p>
-                                        : students.map(s => (
-                                            <div key={s.id} className="student-row group">
-                                                <span className="truncate flex items-center gap-1.5"><IUser/>{s.name}</span>
-                                                <button className="remove-btn" onClick={() => removeStudent(s.id)}><IClose/></button>
-                                            </div>
-                                        ))
-                                    }
-                                </div>
-                                <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-                                    <span>{students.length} student{students.length!==1?'s':''}</span>
-                                    <span>{selectedSeats.size} seat{selectedSeats.size!==1?'s':''} available</span>
-                                </div>
-                                {students.length > 0 && (
-                                    <button className="btn btn-danger" onClick={() => { if(window.confirm('Remove all students?')) { setStudents([]); setCons([]); } }}>
-                                        <ITrash/> Clear All Students
+                                    {editing && <div className="info-box">Click or drag on the grid to toggle seats.</div>}
+                                    <button className="btn btn-danger" onClick={()=>{if(window.confirm('Clear all seats?')){setSeats(new Set());setPlan(new Map());}}}>
+                                        <ITrash/> Clear Grid
                                     </button>
-                                )}
-                            </div>
-                        )}
+                                    <p style={{fontSize:'0.72rem',color:'#64748b',textAlign:'center'}}>{seats.size} seat{seats.size!==1?'s':''} selected</p>
+                                </div>
+                            )}
 
-                        {/* ─ Step 3: Constraints ─ */}
-                        {step === 3 && (
-                            <div className="space-y-4 fade-in">
-                                <div>
+                            {/* ─── Students tab ─── */}
+                            {panelTab==='students' && (
+                                <div className="space-y-3 fade-in flex flex-col" style={{minHeight:'100%'}}>
+                                    <div className="info-box">Enter names separated by commas or new lines, then press <strong>Enter</strong>.</div>
+                                    <div>
+                                        <label className="field-label">Add Students</label>
+                                        <textarea className="field h-24" placeholder="e.g. John, Sarah, Mike, Emily" value={studentInput} onChange={e=>setStudentInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addStudents(studentInput);setStudentInput('');}}}/>
+                                        <button className="btn btn-primary mt-2" onClick={()=>{addStudents(studentInput);setStudentInput('');}}>
+                                            <IPlus/> Add to List
+                                        </button>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-black/10 min-h-[80px] max-h-[240px]">
+                                        {students.length===0
+                                            ?<p className="text-center py-5 italic" style={{color:'#64748b',fontSize:'0.8rem'}}>No students yet.</p>
+                                            :students.map(s=>(
+                                                <div key={s.id} className="student-row group">
+                                                    <span className="truncate flex items-center gap-1.5"><IUser/>{s.name}</span>
+                                                    <button className="remove-btn" onClick={()=>removeStudent(s.id)}><IX/></button>
+                                                </div>
+                                            ))
+                                        }
+                                    </div>
+                                    <div className="flex justify-between text-xs px-1" style={{color:'#64748b'}}>
+                                        <span>{students.length} student{students.length!==1?'s':''}</span>
+                                        <span>{seats.size} seat{seats.size!==1?'s':''}</span>
+                                    </div>
+                                    {students.length>0&&<button className="btn btn-danger" onClick={()=>{if(window.confirm('Remove all students?')){setStudents([]);setCons([]);}}}><ITrash/> Clear All</button>}
+                                </div>
+                            )}
+
+                            {/* ─── Constraints tab ─── */}
+                            {panelTab==='constraints' && (
+                                <div className="space-y-4 fade-in">
                                     <label className="field-label">Add Constraint</label>
                                     <div className="space-y-3">
                                         <div className="flex gap-2">
-                                            <button className={`ctype-card ${cType==='front'?'active':''}`} onClick={() => { setCType('front'); setCS1(''); setCS2(''); }}>
-                                                <div className="ctype-icon">⬆️</div>
-                                                <span className="ctype-title">Sit at Front</span>
-                                                <span className="ctype-sub">1 student</span>
+                                            <button className={`ctype-card ${cType==='front'?'active':''}`} onClick={()=>{setCType('front');setCS1('');setCS2('');}}>
+                                                <div className="ctype-icon">⬆️</div><span className="ctype-title">Sit at Front</span><span className="ctype-sub">1 student</span>
                                             </button>
-                                            <button className={`ctype-card ${cType==='separate'?'active':''}`} onClick={() => { setCType('separate'); setCS1(''); setCS2(''); }}>
-                                                <div className="ctype-icon">↔️</div>
-                                                <span className="ctype-title">Keep Separated</span>
-                                                <span className="ctype-sub">2 students</span>
+                                            <button className={`ctype-card ${cType==='separate'?'active':''}`} onClick={()=>{setCType('separate');setCS1('');setCS2('');}}>
+                                                <div className="ctype-icon">↔️</div><span className="ctype-title">Keep Separated</span><span className="ctype-sub">2 students</span>
                                             </button>
                                         </div>
-                                        <select className="field" value={cS1} onChange={e => setCS1(e.target.value)}>
+                                        <select className="field" value={cS1} onChange={e=>setCS1(e.target.value)}>
                                             <option value="">{cType==='separate'?'Student 1…':'Select student…'}</option>
-                                            {students.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                                            {students.map(s=><option key={s.id} value={s.name}>{s.name}</option>)}
                                         </select>
-                                        {cType === 'separate' && (
-                                            <select className="field" value={cS2} onChange={e => setCS2(e.target.value)} disabled={!cS1}>
-                                                <option value="">Student 2…</option>
-                                                {students.filter(s => s.name !== cS1).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                                            </select>
-                                        )}
-                                        <button className="btn btn-secondary" onClick={addConstraint} disabled={!cS1||(cType==='separate'&&!cS2)}>
-                                            <IPlus/> Add Constraint
-                                        </button>
+                                        {cType==='separate'&&<select className="field" value={cS2} onChange={e=>setCS2(e.target.value)} disabled={!cS1}>
+                                            <option value="">Student 2…</option>
+                                            {students.filter(s=>s.name!==cS1).map(s=><option key={s.id} value={s.name}>{s.name}</option>)}
+                                        </select>}
+                                        <button className="btn btn-secondary" onClick={addConstraint} disabled={!cS1||(cType==='separate'&&!cS2)}><IPlus/> Add Constraint</button>
                                     </div>
-                                </div>
 
-                                {/* Flexibility indicator */}
-                                {students.length > 0 && constraints.length > 0 && (() => {
-                                    const constrained = new Set(constraints.flatMap(c => c.type==='separate'?[c.student1,c.student2]:[c.student1]));
-                                    const ratio = constrained.size / students.length;
-                                    const pct = Math.round(ratio * 100);
-                                    const band = ratio < 0.35
-                                        ? { label:'Good variation', bar:'#22c55e', track:'rgba(34,197,94,0.15)', note:'Most seats are freely assigned.' }
-                                        : ratio < 0.65
-                                        ? { label:'Moderate variation', bar:'#eab308', track:'rgba(234,179,8,0.15)', note:'Reshuffling will produce some variation.' }
-                                        : { label:'Limited variation', bar:'#ef4444', track:'rgba(239,68,68,0.15)', note:'Most students are constrained — reshuffles may look similar.' };
-                                    return (
-                                        <div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:'8px',padding:'0.65rem 0.8rem'}}>
-                                            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:'0.4rem'}}>
-                                                <span style={{fontSize:'0.68rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'#64748b'}}>Plan Flexibility</span>
-                                                <span style={{fontSize:'0.72rem',fontWeight:600,color:band.bar}}>{band.label}</span>
-                                            </div>
-                                            <div style={{height:'5px',borderRadius:'99px',background:band.track,overflow:'hidden',marginBottom:'0.4rem'}}>
-                                                <div style={{height:'100%',width:`${pct}%`,background:band.bar,borderRadius:'99px',transition:'width 0.4s ease'}}/>
-                                            </div>
-                                            <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.68rem',color:'#475569'}}>
-                                                <span>{constrained.size} of {students.length} students constrained</span>
-                                                <span>{pct}%</span>
-                                            </div>
-                                            <p style={{fontSize:'0.68rem',color:'#475569',marginTop:'0.3rem'}}>{band.note}</p>
-                                        </div>
-                                    );
-                                })()}
+                                    {/* Flexibility */}
+                                    {students.length>0&&constraints.length>0&&(()=>{
+                                        const con=new Set(constraints.flatMap(c=>c.type==='separate'?[c.student1,c.student2]:[c.student1]));
+                                        const r=con.size/students.length,pct=Math.round(r*100);
+                                        const b=r<0.35?{l:'Good variation',c:'#22c55e',t:'rgba(34,197,94,0.15)'}:r<0.65?{l:'Moderate',c:'#eab308',t:'rgba(234,179,8,0.15)'}:{l:'Limited',c:'#ef4444',t:'rgba(239,68,68,0.15)'};
+                                        return(<div style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:'8px',padding:'0.6rem 0.8rem'}}>
+                                            <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.68rem',marginBottom:'0.35rem'}}><span style={{fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:'#64748b'}}>Flexibility</span><span style={{fontWeight:600,color:b.c}}>{b.l}</span></div>
+                                            <div style={{height:'4px',borderRadius:'99px',background:b.t,overflow:'hidden'}}><div style={{height:'100%',width:`${pct}%`,background:b.c,borderRadius:'99px',transition:'width 0.4s ease'}}/></div>
+                                            <p style={{fontSize:'0.65rem',color:'#475569',marginTop:'0.3rem'}}>{con.size} of {students.length} constrained ({pct}%)</p>
+                                        </div>);
+                                    })()}
 
-                                {/* Active constraints */}
-                                {constraints.length > 0 && (
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <label className="field-label mb-0">Active Constraints</label>
-                                            <button
-                                                onClick={() => setHideC(h => !h)}
-                                                className="flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-all"
-                                                style={{ background: hideConstraints?'rgba(234,179,8,0.15)':'rgba(255,255,255,0.06)', border: hideConstraints?'1px solid rgba(234,179,8,0.3)':'1px solid rgba(255,255,255,0.1)', color: hideConstraints?'#fde68a':'#64748b' }}
-                                            >
-                                                {hideConstraints ? <><IEye/> Reveal</> : <><IEyeOff/> Hide</>}
-                                            </button>
-                                        </div>
-                                        {hideConstraints ? (
-                                            <div className="chip justify-center" style={{borderColor:'rgba(234,179,8,0.25)',background:'rgba(234,179,8,0.07)',color:'#fde68a'}}>
-                                                <span className="text-xs">Constraints are set</span>
+                                    {/* Active constraints */}
+                                    {constraints.length>0&&(
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <label className="field-label mb-0">Active</label>
+                                                <button onClick={()=>setHideC(h=>!h)} className="flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-all" style={{background:hideC?'rgba(234,179,8,0.15)':'rgba(255,255,255,0.06)',border:hideC?'1px solid rgba(234,179,8,0.3)':'1px solid rgba(255,255,255,0.1)',color:hideC?'#fde68a':'#64748b'}}>
+                                                    {hideC?<><IEye/> Reveal</>:<><IEyeOff/> Hide</>}
+                                                </button>
                                             </div>
-                                        ) : (
-                                            <>
-                                                {constraints.some(c => c.type==='front') && (
-                                                    <div className="space-y-1">
-                                                        <p className="text-xs text-slate-600 font-semibold uppercase tracking-wider px-1">⬆ Sit at Front</p>
-                                                        {constraints.filter(c=>c.type==='front').map(c => (
-                                                            <div key={c.id} className="chip">
-                                                                <strong className="text-white">{c.student1}</strong>
-                                                                <button onClick={() => setCons(constraints.filter(x=>x.id!==c.id))} className="text-red-400 hover:text-red-300 font-bold ml-2 text-base leading-none">×</button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {constraints.some(c => c.type==='separate') && (
-                                                    <div className="space-y-1">
-                                                        <p className="text-xs text-slate-600 font-semibold uppercase tracking-wider px-1">↔ Keep Separated</p>
-                                                        {constraints.filter(c=>c.type==='separate').map(c => (
-                                                            <div key={c.id} className="chip">
-                                                                <span><strong className="text-white">{c.student1}</strong><span className="text-slate-500 mx-1">+</span><strong className="text-white">{c.student2}</strong></span>
-                                                                <button onClick={() => setCons(constraints.filter(x=>x.id!==c.id))} className="text-red-400 hover:text-red-300 font-bold ml-2 text-base leading-none">×</button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                )}
-                                <div className="divider"/>
-
-                                {/* Import / Export */}
-                                <div className="space-y-2">
-                                    <label className="field-label">Import / Export</label>
-                                    <button className="btn btn-secondary" onClick={exportAllClasses}>
-                                        <IExport/> Export All Classes
-                                    </button>
-                                    <button className="btn btn-secondary" onClick={exportClass}>
-                                        <IExport/> Export This Class
-                                    </button>
-                                    <label className="btn btn-secondary" style={{cursor:'pointer'}}>
-                                        <IUpload/> Import Classes
-                                        <input type="file" onChange={importAllClasses} className="hidden" accept=".json"/>
-                                    </label>
-                                    <label className="btn btn-secondary" style={{cursor:'pointer'}}>
-                                        <IUpload/> Import Single Class
-                                        <input type="file" onChange={importClass} className="hidden" accept=".json"/>
-                                    </label>
-
-                                    {importWarnings.length > 0 && (
-                                        <div className="import-warning">
-                                            <div className="flex justify-between items-start mb-1">
-                                                <strong>{importWarnings[0]}</strong>
-                                                <button onClick={() => setImportWarn([])} className="text-yellow-300 hover:text-white ml-2 leading-none">×</button>
-                                            </div>
-                                            {importWarnings.length > 1 && (
-                                                <ul className="list-disc ml-4 space-y-0.5 mt-1">
-                                                    {importWarnings.slice(1).map((w, i) => <li key={i}>{w}</li>)}
-                                                </ul>
+                                            {hideC?<div className="chip justify-center" style={{borderColor:'rgba(234,179,8,0.25)',background:'rgba(234,179,8,0.07)',color:'#fde68a'}}><span className="text-xs">Constraints are set</span></div>:(
+                                                <>
+                                                    {constraints.some(c=>c.type==='front')&&<div className="space-y-1"><p className="text-xs font-semibold uppercase tracking-wider px-1" style={{color:'#475569'}}>⬆ Front</p>{constraints.filter(c=>c.type==='front').map(c=><div key={c.id} className="chip"><strong style={{color:'#fff'}}>{c.student1}</strong><button onClick={()=>setCons(constraints.filter(x=>x.id!==c.id))} style={{color:'#f87171',fontWeight:700,marginLeft:'0.5rem',fontSize:'1rem',lineHeight:1,border:'none',background:'none',cursor:'pointer'}}>×</button></div>)}</div>}
+                                                    {constraints.some(c=>c.type==='separate')&&<div className="space-y-1"><p className="text-xs font-semibold uppercase tracking-wider px-1" style={{color:'#475569'}}>↔ Separated</p>{constraints.filter(c=>c.type==='separate').map(c=><div key={c.id} className="chip"><span><strong style={{color:'#fff'}}>{c.student1}</strong><span style={{color:'#64748b',margin:'0 0.25rem'}}>+</span><strong style={{color:'#fff'}}>{c.student2}</strong></span><button onClick={()=>setCons(constraints.filter(x=>x.id!==c.id))} style={{color:'#f87171',fontWeight:700,marginLeft:'0.5rem',fontSize:'1rem',lineHeight:1,border:'none',background:'none',cursor:'pointer'}}>×</button></div>)}</div>}
+                                                </>
                                             )}
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {errorMsg && (
-                            <div className="mt-4 p-2.5 bg-red-500/15 border border-red-500/25 text-red-300 text-xs rounded-lg">{errorMsg}</div>
-                        )}
+                            {/* ─── Import/Export tab ─── */}
+                            {panelTab==='data' && (
+                                <div className="space-y-3 fade-in">
+                                    <label className="field-label">Export</label>
+                                    <button className="btn btn-secondary" onClick={exportAll}><IExport/> Export All Classes</button>
+                                    <button className="btn btn-secondary" onClick={exportCls}><IExport/> Export This Class</button>
+                                    <div className="divider"/>
+                                    <label className="field-label">Import</label>
+                                    <label className="btn btn-secondary" style={{cursor:'pointer'}}><IUpload/> Import from File<input type="file" onChange={importAll} className="hidden" accept=".json"/></label>
+                                    <p style={{fontSize:'0.68rem',color:'#64748b',lineHeight:1.5}}>Accepts both single-class and multi-class files. Imported classes are added to your library.</p>
 
-                        <div className="mt-auto pt-6 text-center text-xs text-slate-600">
-                            {selectedSeats.size} seats · {students.length} students
-                        </div>
-                    </div>
-
-                    {/* ═══ MAIN AREA ═══ */}
-                    <div className="main-area flex-1 bg-white p-6 flex flex-col overflow-auto">
-
-                        {/* Plan toolbar */}
-                        {step === 3 && (
-                            <div className="no-print w-full max-w-[900px] mx-auto mb-4 flex flex-col gap-2">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    {/* Class picker — the Monday morning selector */}
-                                    <select
-                                        value={classId}
-                                        onChange={e => switchClass(e.target.value, true)}
-                                        className="px-3 py-2 rounded-lg text-sm font-semibold border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 transition-all outline-none cursor-pointer"
-                                        style={{maxWidth:'160px'}}
-                                    >
-                                        {Object.entries(classIndex).map(([id, name]) => (
-                                            <option key={id} value={id}>{name}</option>
-                                        ))}
-                                    </select>
-
-                                    <div className="w-px h-6 bg-gray-200 mx-1"/>
-
-                                    <button onClick={generatePlan} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all active:scale-95" style={{background:'linear-gradient(135deg,#4f46e5,#3b82f6)',boxShadow:'0 2px 8px rgba(59,130,246,0.35)'}}>
-                                        <IShuffle/> {seatingPlan && seatingPlan.size > 0 ? 'Reshuffle' : 'Generate Plan'}
-                                    </button>
-                                    <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all active:scale-95">
-                                        <IPrint/> Print
-                                    </button>
-                                    {seatingPlan && seatingPlan.size > 0 && (
-                                        <span className="ml-2 text-xs text-gray-400 flex items-center gap-1" title="Drag students on the grid to swap seats">
-                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                                            Drag seats to swap
-                                        </span>
+                                    {importWarn.length>0&&(
+                                        <div className="import-warning">
+                                            <div className="flex justify-between items-start mb-1">
+                                                <strong>{importWarn[0]}</strong>
+                                                <button onClick={()=>setImportWarn([])} style={{color:'#fde68a',background:'none',border:'none',cursor:'pointer',fontWeight:700,fontSize:'1rem'}}>×</button>
+                                            </div>
+                                            {importWarn.length>1&&<ul style={{listStyle:'disc',marginLeft:'1rem'}}>{importWarn.slice(1).map((w,i)=><li key={i}>{w}</li>)}</ul>}
+                                        </div>
                                     )}
                                 </div>
-                                {reshuffleSim !== null && (() => {
-                                    const msg = reshuffleSim >= 65
-                                        ? { text:`${reshuffleSim}% of seats changed.`, color:'#166534', bg:'#f0fdf4', border:'#bbf7d0' }
-                                        : reshuffleSim >= 35
-                                        ? { text:`${reshuffleSim}% of seats changed — moderate variation.`, color:'#92400e', bg:'#fffbeb', border:'#fde68a' }
-                                        : { text:`${reshuffleSim}% of seats changed — constraints are limiting variation.`, color:'#b91c1c', bg:'#fef2f2', border:'#fecaca' };
-                                    return <div style={{background:msg.bg,border:`1px solid ${msg.border}`,borderRadius:'8px',padding:'0.5rem 0.8rem',fontSize:'0.73rem',color:msg.color}}>{msg.text}</div>;
-                                })()}
-                            </div>
-                        )}
-
-                        {/* Board */}
-                        <div className="board w-full max-w-[900px] mx-auto mb-5 no-print">Board / Front of Class</div>
-
-                        {/* Grid */}
-                        <div
-                            className="seating-grid flex-1"
-                            style={{gridTemplateColumns:`repeat(${cols}, minmax(0, 1fr))`,width:'100%',maxWidth:'900px',margin:'0 auto'}}
-                            onMouseLeave={onMouseUp}
-                        >
-                            {Array.from({length: rows * cols}).map((_, idx) => {
-                                const r = Math.floor(idx / cols), c = idx % cols;
-                                const id = `${r}-${c}`;
-                                const isSelected = selectedSeats.has(id);
-
-                                if (step === 1) return (
-                                    <div key={id} onMouseDown={() => onSeatDown(id)} onMouseEnter={() => onSeatEnter(id)} className={`seat cursor-pointer ${isSelected?'selected':'empty'}`}>
-                                        {isSelected && <span style={{fontSize:'0.6rem',opacity:0.7}}>{r+1},{c+1}</span>}
-                                    </div>
-                                );
-
-                                if (!isSelected) return <div key={id} className="seat not-available"/>;
-
-                                let studentName = null;
-                                if (seatingPlan) { for (const [name, sid] of seatingPlan.entries()) { if (sid === id) { studentName = name; break; } } }
-
-                                return (
-                                    <div key={id} className={`seat ${studentName?'assigned':'open'}`}
-                                        draggable={!!studentName && step===3}
-                                        onDragStart={e => onDragStart(e, studentName, id)}
-                                        onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={e => onDrop(e, id)}
-                                        title={studentName||''}
-                                    >
-                                        {studentName && <span style={{fontSize:'0.65rem',lineHeight:1.2,wordBreak:'break-word'}}>{studentName}</span>}
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        {/* Footer */}
-                        <div className="no-print mt-4 text-center text-xs text-gray-400 font-medium">
-                            {step===1 && `${selectedSeats.size} of ${rows*cols} seats selected`}
-                            {step===2 && `${students.length} student${students.length!==1?'s':''} · ${selectedSeats.size} seat${selectedSeats.size!==1?'s':''}`}
-                            {step===3 && seatingPlan && seatingPlan.size>0 && `${seatingPlan.size} student${seatingPlan.size!==1?'s':''} placed`}
-                            {step===3 && (!seatingPlan||seatingPlan.size===0) && 'Press Generate Plan to begin'}
+                            )}
                         </div>
                     </div>
-                </div>
+
+                    {/* ── GRID AREA ── */}
+                    <div className="grid-area">
+                        {!isReady && !editing ? (
+                            <div className="empty-state">
+                                <h3>Get started</h3>
+                                <p>Set up your room layout and add students to generate a seating plan.</p>
+                                <button onClick={()=>{setPanelOpen(true);setPanelTab(seats.size===0?'layout':'students');}}>
+                                    <IGear/> Open Setup
+                                </button>
+                            </div>
+                        ) : (
+                            <div style={{width:'100%',maxWidth:'960px'}}>
+                                <div className="board no-print">Board / Front of Class</div>
+                                <div className="seating-grid" style={{gridTemplateColumns:`repeat(${cols}, minmax(0, 1fr))`,width:'100%'}} onMouseLeave={()=>setDragging(false)}>
+                                    {Array.from({length:rows*cols}).map((_,idx)=>{
+                                        const r=Math.floor(idx/cols),c=idx%cols,id=`${r}-${c}`,isSel=seats.has(id);
+
+                                        // Editing mode — paint seats
+                                        if(editing) return(
+                                            <div key={id} onMouseDown={()=>onSeatDown(id)} onMouseEnter={()=>onSeatEnter(id)} className={`seat cursor-pointer ${isSel?'selected':'empty'}`}>
+                                                {isSel&&<span style={{fontSize:'0.55rem',opacity:0.7}}>{r+1},{c+1}</span>}
+                                            </div>
+                                        );
+
+                                        // Not a seat
+                                        if(!isSel) return <div key={id} className="seat not-available"/>;
+
+                                        // Find student
+                                        let name=null;
+                                        if(plan)for(const[n,s]of plan.entries())if(s===id){name=n;break;}
+
+                                        return(
+                                            <div key={id} className={`seat ${name?'assigned':'open'}`} draggable={!!name} onDragStart={e=>onDragStart(e,name,id)} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={e=>onDrop(e,id)} title={name||''}>
+                                                {name&&<span style={{fontSize:'0.68rem',lineHeight:1.2,wordBreak:'break-word'}}>{name}</span>}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="no-print" style={{textAlign:'center',marginTop:'1rem',fontSize:'0.75rem',color:'#94a3b8'}}>
+                                    {editing&&`${seats.size} of ${rows*cols} seats selected`}
+                                    {!editing&&hasPlan&&`${plan.size} student${plan.size!==1?'s':''} placed`}
+                                    {!editing&&!hasPlan&&isReady&&'Ready — press Generate'}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </>
             );
         };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<SeatingPlanner />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
     </script>
 </body>
 </html>
