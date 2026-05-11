@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Use — Classroom Seating Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            margin: 0; font-family: 'Inter', system-ui, sans-serif;
+            background: #f1f5f9; color: #1e293b; line-height: 1.6;
+        }
+
+        /* ── Top bar ── */
+        .topbar {
+            background: #fff; border-bottom: 1px solid #e2e8f0;
+            padding: 0.75rem 1.5rem; display: flex; align-items: center; gap: 0.75rem;
+            position: sticky; top: 0; z-index: 10;
+        }
+        .topbar .logo {
+            width: 1.7rem; height: 1.7rem; border-radius: 6px; flex-shrink: 0;
+            background: linear-gradient(135deg, #4f46e5, #3b82f6);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 6px rgba(59,130,246,0.4);
+        }
+        .topbar .logo svg { display: block; }
+        .topbar h1 { font-size: 0.95rem; font-weight: 800; color: #1e293b; margin: 0; }
+        .topbar .sep { color: #cbd5e1; font-weight: 300; font-size: 1.1rem; }
+        .topbar .sub { font-size: 0.88rem; font-weight: 500; color: #64748b; }
+        .topbar .app-link {
+            margin-left: auto; padding: 0.4rem 0.9rem; border-radius: 8px; font-size: 0.82rem;
+            font-weight: 600; text-decoration: none; color: #fff;
+            background: linear-gradient(135deg, #4f46e5, #3b82f6);
+            box-shadow: 0 2px 8px rgba(59,130,246,0.35); transition: box-shadow 0.15s;
+        }
+        .topbar .app-link:hover { box-shadow: 0 4px 14px rgba(59,130,246,0.5); }
+
+        /* ── Layout ── */
+        .page { max-width: 760px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+        .intro {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 1.5rem 1.75rem; margin-bottom: 2.5rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        }
+        .intro p { margin: 0; font-size: 0.95rem; color: #475569; }
+
+        /* ── Steps ── */
+        .steps { display: flex; flex-direction: column; gap: 1.25rem; }
+
+        .step {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+            overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            display: flex;
+        }
+        .step-number {
+            width: 3.5rem; flex-shrink: 0; display: flex; align-items: flex-start;
+            justify-content: center; padding-top: 1.4rem;
+            font-size: 1.3rem; font-weight: 800; color: #e2e8f0;
+            background: #f8fafc; border-right: 1px solid #e2e8f0;
+        }
+        .step-body { padding: 1.25rem 1.5rem; flex: 1; }
+        .step-body h2 {
+            margin: 0 0 0.4rem; font-size: 1rem; font-weight: 700; color: #1e293b;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .step-body h2 .icon { font-size: 1.1rem; }
+        .step-body p { margin: 0 0 0.6rem; font-size: 0.88rem; color: #475569; }
+        .step-body p:last-child { margin-bottom: 0; }
+
+        /* ── Tags/tips ── */
+        .tag {
+            display: inline-block; padding: 0.15rem 0.55rem; border-radius: 99px;
+            font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em;
+        }
+        .tag-blue { background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; }
+        .tag-purple { background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+        .tag-amber { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+        .tag-green { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+
+        .tip {
+            margin-top: 0.6rem; padding: 0.55rem 0.85rem; border-radius: 8px;
+            font-size: 0.82rem; color: #1d4ed8;
+            background: #eff6ff; border: 1px solid #bfdbfe;
+        }
+        .tip strong { font-weight: 700; }
+
+        /* ── Constraints table ── */
+        .constraint-grid {
+            display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 0.85rem;
+            font-size: 0.85rem; margin-top: 0.5rem;
+        }
+        .constraint-grid .label { font-weight: 700; color: #1e293b; white-space: nowrap; }
+        .constraint-grid .desc { color: #475569; }
+
+        /* ── Footer ── */
+        footer {
+            text-align: center; padding: 2rem 1rem;
+            font-size: 0.78rem; color: #94a3b8;
+        }
+        footer a { color: #3b82f6; text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="logo">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+    </div>
+    <h1>Seating Planner</h1>
+    <span class="sep">·</span>
+    <span class="sub">User Guide</span>
+    <a class="app-link" href="/seating-planner/">Open App</a>
+</div>
+
+<div class="page">
+
+    <div class="intro">
+        <p>A quick walkthrough of the five things you need to know. The whole workflow takes under two minutes the first time.</p>
+    </div>
+
+    <div class="steps">
+
+        <!-- Step 1 -->
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-body">
+                <h2><span class="icon">🗂️</span> Create or select a class</h2>
+                <p>Click the <strong>gear icon</strong> (top-right) to open the setup panel. On the <strong>Layout</strong> tab you can rename the current class, create a new one, duplicate it, or switch between classes using the dropdown.</p>
+                <p>Each class stores its own room layout, student list, constraints, and last seating plan independently.</p>
+            </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-body">
+                <h2><span class="icon">🪑</span> Draw the room layout</h2>
+                <p>Set the number of <strong>rows</strong> and <strong>columns</strong> to match your room, then click <strong>Edit Seat Layout</strong>. The panel stays open — click or drag directly on the grid to toggle individual seats on or off. Gaps in the grid (non-available seats) are simply left untoggled.</p>
+                <p>Click <strong>Done Editing Layout</strong> when finished.</p>
+                <div class="tip"><strong>Tip:</strong> The top of the grid is always the front of the room (Board / Front of Class).</div>
+            </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-body">
+                <h2><span class="icon">👩‍🎓</span> Add students</h2>
+                <p>Switch to the <strong>Students</strong> tab. Type names separated by commas or new lines, then press <strong>Enter</strong> or click <strong>Add to List</strong>. Duplicates are skipped automatically.</p>
+                <p>The counter at the bottom shows students vs. seats — you need at least as many seats as students before you can generate a plan.</p>
+            </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-body">
+                <h2><span class="icon">⚙️</span> Set constraints <span class="tag tag-amber">optional</span></h2>
+                <p>On the <strong>Constraints</strong> tab, choose a constraint type and select the relevant student(s):</p>
+                <div class="constraint-grid">
+                    <span class="label">⬆ Sit at Front</span>
+                    <span class="desc">Ensures a student is placed in the front rows.</span>
+                    <span class="label">↔ Keep Separated</span>
+                    <span class="desc">Keeps two students away from each other.</span>
+                </div>
+                <p style="margin-top:0.65rem;">The <strong>Flexibility</strong> bar shows how constrained the plan is overall. Many constraints reduce variation between reshuffles.</p>
+                <p>Use <strong>Hide</strong> to collapse the active constraints list — useful if students are nearby and you don't want them reading the screen.</p>
+            </div>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="step">
+            <div class="step-number">5</div>
+            <div class="step-body">
+                <h2><span class="icon">🔀</span> Generate &amp; refine</h2>
+                <p>Close the panel and click <strong>Generate</strong> in the top bar. The planner runs 200 random arrangements and picks the one that best satisfies all constraints.</p>
+                <p>Click <strong>Reshuffle</strong> at any time to produce a new arrangement. The banner shows what percentage of seats changed — low percentages mean constraints are limiting variation.</p>
+                <p><strong>Drag students</strong> on the grid to manually swap seats after generating.</p>
+                <div class="tip"><strong>Print:</strong> Click <strong>Print</strong> in the top bar for a clean, ink-friendly layout with no UI chrome.</div>
+            </div>
+        </div>
+
+        <!-- Bonus -->
+        <div class="step">
+            <div class="step-number" style="font-size:1rem; padding-top:1.5rem; color:#cbd5e1;">💾</div>
+            <div class="step-body">
+                <h2>Import &amp; Export</h2>
+                <p>On the <strong>Import/Export</strong> tab you can save a single class or all classes as a JSON file. Share a file with a colleague or move your library to another device by importing it back — imported classes are added to your existing library without overwriting anything.</p>
+                <p>All data is stored in your browser's local storage; nothing is sent to a server.</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<footer>
+    <a href="/seating-planner/">← Back to the app</a>
+</footer>
+
+</body>
+</html>
