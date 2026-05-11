@@ -82,7 +82,7 @@
         .panel-overlay.open { opacity: 1; pointer-events: all; }
 
         .setup-panel {
-            position: fixed; top: 0; left: 0; bottom: 0; width: 340px;
+            position: fixed; top: 0; left: 0; bottom: 0; width: 390px;
             background: linear-gradient(160deg, #1e293b 0%, #0f172a 100%);
             z-index: 31; transform: translateX(-100%);
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -198,7 +198,7 @@
             aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
             text-align: center; font-size: 0.72rem; font-weight: 600; line-height: 1.2; padding: 3px;
             border-radius: 8px; transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
-            position: relative; overflow: hidden;
+            position: relative; overflow: hidden; hyphens: auto; -webkit-hyphens: auto;
         }
         .seat::after {
             content: ''; position: absolute; bottom: 2px; left: 15%; right: 15%;
@@ -228,10 +228,10 @@
         /* ── Board ── */
         .board {
             background: linear-gradient(135deg, #1e3a5f, #1e293b);
-            border-radius: 10px 10px 4px 4px; height: 36px; width: 100%;
+            border-radius: 10px 10px 4px 4px; height: 52px; width: 100%;
             display: flex; align-items: center; justify-content: center;
-            color: rgba(255,255,255,0.5); font-size: 0.6rem; font-weight: 700;
-            letter-spacing: 0.15em; text-transform: uppercase;
+            color: #7dd3fc; font-size: 1rem; font-weight: 800;
+            letter-spacing: 0.12em; text-transform: uppercase;
             box-shadow: 0 4px 16px rgba(0,0,0,0.15); position: relative; overflow: hidden;
             margin-bottom: 1rem;
         }
@@ -726,7 +726,7 @@
 
                                         return(
                                             <div key={id} className={`seat ${name?'assigned':'open'}`} draggable={!!name} onDragStart={e=>onDragStart(e,name,id)} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={e=>onDrop(e,id)} title={name||''}>
-                                                {name&&<span style={{fontSize:'0.68rem',lineHeight:1.2,wordBreak:'break-word'}}>{name}</span>}
+                                                {name&&<span style={{fontSize:'0.82rem',lineHeight:1.2,wordBreak:'break-word',overflowWrap:'break-word'}}>{name}</span>}
                                             </div>
                                         );
                                     })}
