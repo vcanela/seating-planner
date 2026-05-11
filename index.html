@@ -529,7 +529,7 @@
                     })()}
 
                     {/* ── SETUP PANEL ── */}
-                    <div className={`panel-overlay ${panelOpen?'open':''}`} onClick={()=>{setPanelOpen(false);setEditing(false);}}/>
+                    <div className={`panel-overlay ${panelOpen&&!editing?'open':''}`} onClick={()=>{setPanelOpen(false);setEditing(false);}}/>
                     <div className={`setup-panel ${panelOpen?'open':''}`}>
                         <div className="panel-header">
                             <h2>Class Setup</h2>
