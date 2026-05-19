@@ -7,14 +7,14 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 
     <style>
-        * { font-family: 'Inter', system-ui, -apple-system, sans-serif; box-sizing: border-box; }
+        * { font-family: 'Lora', Georgia, serif; box-sizing: border-box; }
         body { margin: 0; background: #f1f5f9; }
         #root { width: 100%; min-height: 100vh; display: flex; flex-direction: column; }
 
@@ -91,11 +91,28 @@
         .setup-panel.open { transform: translateX(0); }
 
         .panel-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 1rem 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.07);
+            display: flex; flex-direction: column; gap: 0.55rem;
+            padding: 0.85rem 1.2rem 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.07);
             flex-shrink: 0;
         }
-        .panel-header h2 { color: #f1f5f9; font-size: 0.95rem; font-weight: 700; margin: 0; }
+        .panel-header-row { display: flex; align-items: center; gap: 0.45rem; }
+        .panel-class-name {
+            flex: 1; background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.14);
+            border-radius: 7px; color: #f1f5f9; font-size: 0.97rem; font-weight: 700;
+            padding: 0.3rem 0.55rem; outline: none; min-width: 0; transition: border-color 0.15s, background 0.15s;
+        }
+        .panel-class-name:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.25); }
+        .panel-class-name:focus { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+        .panel-class-name::placeholder { color: #475569; }
+        .panel-cls-btn {
+            display: flex; align-items: center; gap: 0.28rem;
+            padding: 0.28rem 0.5rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
+            color: #94a3b8; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+        }
+        .panel-cls-btn:hover { background: rgba(255,255,255,0.1); color: #cbd5e1; }
+        .panel-cls-btn.danger { border-color: rgba(239,68,68,0.18); }
+        .panel-cls-btn.danger:hover { background: rgba(239,68,68,0.12); color: #fca5a5; border-color: rgba(239,68,68,0.3); }
         .panel-close {
             width: 2rem; height: 2rem; border-radius: 6px; border: none;
             background: rgba(255,255,255,0.06); color: #94a3b8;
@@ -106,19 +123,31 @@
 
         /* Panel tab nav */
         .panel-tabs {
-            display: flex; padding: 0 1.2rem; gap: 0;
+            display: flex; padding: 0; gap: 0;
             border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0;
         }
         .panel-tab {
-            padding: 0.6rem 0.8rem; font-size: 0.72rem; font-weight: 600;
-            text-transform: uppercase; letter-spacing: 0.06em;
+            flex: 1; padding: 0.65rem 0.4rem; font-size: 0.7rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.05em; text-align: center;
             color: #64748b; border: none; background: none; cursor: pointer;
             border-bottom: 2px solid transparent; transition: all 0.15s;
         }
         .panel-tab:hover { color: #94a3b8; }
         .panel-tab.active { color: #93c5fd; border-bottom-color: #3b82f6; }
 
-        .panel-body { flex: 1; overflow-y: auto; padding: 1.2rem; }
+        .panel-body { flex: 1; overflow-y: auto; padding: 1.2rem; display: flex; flex-direction: column; }
+
+        .panel-footer {
+            flex-shrink: 0; border-top: 1px solid rgba(255,255,255,0.07);
+            padding: 0.6rem 1.2rem; display: flex; gap: 0.5rem; align-items: center;
+        }
+        .panel-footer-btn {
+            flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.3rem;
+            padding: 0.38rem 0.4rem; border-radius: 7px; font-size: 0.7rem; font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
+            color: #64748b; cursor: pointer; transition: all 0.15s;
+        }
+        .panel-footer-btn:hover { background: rgba(255,255,255,0.09); color: #94a3b8; border-color: rgba(255,255,255,0.18); }
 
         /* ── Panel form elements (dark theme) ── */
         .field {
@@ -307,7 +336,7 @@
             const cols=Math.max(2,Math.min(15,schema.room?.cols??6));
             return {
                 rows,cols,
-                selectedSeats:new Set(schema.room?.seats??[]),
+                selectedSeats:new Set((schema.room?.seats??[]).filter(s=>{const[r,c]=s.split('-').map(Number);return r>=0&&r<rows&&c>=0&&c<cols;})),
                 students:(schema.students??[]).filter(s=>s&&typeof s==='string'&&s.trim()).map(name=>({name:name.trim(),id:Date.now()+Math.random()})),
                 constraints:(schema.constraints??[]).map(c=>({id:Date.now()+Math.random(),type:c.type,student1:c.type==='front'?c.student:c.students?.[0],student2:c.type==='separate'?c.students?.[1]:null})).filter(c=>c.student1),
                 seatingPlan:schema._lastPlan?new Map(schema._lastPlan):new Map()
@@ -388,7 +417,7 @@
             const [plan,setPlan]=useState(init.seatingPlan);
 
             const [panelOpen,setPanelOpen]=useState(()=>init.students.length===0||init.selectedSeats.size===0);
-            const [panelTab,setPanelTab]=useState('layout');
+            const [panelTab,setPanelTab]=useState('room');
             const [editing,setEditing]=useState(false); // true when in grid-paint mode
             const [cType,setCType]=useState('front');
             const [cS1,setCS1]=useState('');
@@ -423,7 +452,7 @@
                 setStudents(d.students);setCons(d.constraints);setPlan(d.seatingPlan);
                 setReshuffleSim(null);setError('');setEditing(false);
                 saveJSON(AK,id);
-                if(d.students.length===0||d.selectedSeats.size===0){setPanelOpen(true);setPanelTab(d.selectedSeats.size===0?'layout':'students');}
+                if(d.students.length===0||d.selectedSeats.size===0){setPanelOpen(true);setPanelTab(d.selectedSeats.size===0?'room':'students');}
             };
             const switchCls=(id)=>{const cls=loadJSON(CK,{});loadCls(id,cls);};
             const createCls=()=>{const id=genId(),s=makeNew('New Class'),cls=loadJSON(CK,{});cls[id]=s;saveJSON(CK,cls);setClassIndex(p=>({...p,[id]:s.meta.name}));loadCls(id,cls);};
@@ -488,9 +517,14 @@
                     <div className="top-bar no-print">
                         <div className="app-title">
                             <div className="logo">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                                    <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                                <svg width="15" height="13" viewBox="0 0 22 18" fill="white">
+                                    <rect x="0" y="0" width="22" height="3" rx="1.5"/>
+                                    <rect x="0" y="6" width="6" height="4.5" rx="1.2"/>
+                                    <rect x="8" y="6" width="6" height="4.5" rx="1.2"/>
+                                    <rect x="16" y="6" width="6" height="4.5" rx="1.2"/>
+                                    <rect x="0" y="13" width="6" height="4.5" rx="1.2"/>
+                                    <rect x="8" y="13" width="6" height="4.5" rx="1.2"/>
+                                    <rect x="16" y="13" width="6" height="4.5" rx="1.2"/>
                                 </svg>
                             </div>
                             Seating Planner
@@ -532,34 +566,31 @@
                     <div className={`panel-overlay ${panelOpen&&!editing?'open':''}`} onClick={()=>{setPanelOpen(false);setEditing(false);}}/>
                     <div className={`setup-panel ${panelOpen?'open':''}`}>
                         <div className="panel-header">
-                            <h2>Class Setup</h2>
-                            <button className="panel-close" onClick={()=>{setPanelOpen(false);setEditing(false);}}><IX/></button>
+                            <div className="panel-header-row">
+                                <input type="text" className="panel-class-name" value={className} onChange={e=>renameCls(e.target.value)} placeholder="Class name…"/>
+                                <button className="panel-close" onClick={()=>{setPanelOpen(false);setEditing(false);}}><IX/></button>
+                            </div>
+                            <div className="panel-header-row">
+                                <select className="field" style={{flex:1,fontSize:'0.75rem',padding:'0.3rem 0.6rem'}} value={classId} onChange={e=>switchCls(e.target.value)}>
+                                    {Object.entries(classIndex).map(([id,name])=><option key={id} value={id}>{name}</option>)}
+                                </select>
+                                <button className="panel-cls-btn" onClick={createCls} title="New class"><IPlus/> New</button>
+                                <button className="panel-cls-btn" onClick={dupCls} title="Duplicate"><ICopy/> Copy</button>
+                                <button className="panel-cls-btn danger" onClick={delCls} title="Delete"><ITrash/></button>
+                            </div>
                         </div>
                         <div className="panel-tabs">
-                            {['layout','students','constraints','data'].map(t=>(
-                                <button key={t} className={`panel-tab ${panelTab===t?'active':''}`} onClick={()=>{setPanelTab(t);if(t!=='layout')setEditing(false);}}>
-                                    {t==='data'?'Import/Export':t}
+                            {[['room','Room'],['students','Students'],['rules','Rules']].map(([t,label])=>(
+                                <button key={t} className={`panel-tab ${panelTab===t?'active':''}`} onClick={()=>{setPanelTab(t);if(t!=='room')setEditing(false);}}>
+                                    {label}
                                 </button>
                             ))}
                         </div>
                         <div className="panel-body">
 
-                            {/* ─── Layout tab ─── */}
-                            {panelTab==='layout' && (
+                            {/* ─── Room tab ─── */}
+                            {panelTab==='room' && (
                                 <div className="space-y-4 fade-in">
-                                    <div className="space-y-2">
-                                        <label className="field-label">Class</label>
-                                        <select className="field" value={classId} onChange={e=>switchCls(e.target.value)}>
-                                            {Object.entries(classIndex).map(([id,name])=><option key={id} value={id}>{name}</option>)}
-                                        </select>
-                                        <input type="text" className="field" value={className} onChange={e=>renameCls(e.target.value)} placeholder="Class name…"/>
-                                        <div className="flex gap-2">
-                                            <button className="icon-btn flex-1" style={{width:'auto'}} onClick={createCls} title="New"><IPlus/></button>
-                                            <button className="icon-btn flex-1" style={{width:'auto'}} onClick={dupCls} title="Duplicate"><ICopy/></button>
-                                            <button className="icon-btn danger flex-1" style={{width:'auto'}} onClick={delCls} title="Delete"><ITrash/></button>
-                                        </div>
-                                    </div>
-                                    <div className="divider"/>
                                     <label className="field-label">Room Layout</label>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
@@ -572,9 +603,8 @@
                                         </div>
                                     </div>
                                     <button className={`btn ${editing?'btn-primary':'btn-secondary'}`} onClick={()=>setEditing(e=>!e)}>
-                                        {editing ? 'Done Editing Layout' : 'Edit Seat Layout'}
+                                        {editing ? 'Done Editing Layout' : 'Click to Edit Seat Layout'}
                                     </button>
-                                    {editing && <div className="info-box">Click or drag on the grid to toggle seats.</div>}
                                     <button className="btn btn-danger" onClick={()=>{if(window.confirm('Clear all seats?')){setSeats(new Set());setPlan(new Map());}}}>
                                         <ITrash/> Clear Grid
                                     </button>
@@ -584,16 +614,15 @@
 
                             {/* ─── Students tab ─── */}
                             {panelTab==='students' && (
-                                <div className="space-y-3 fade-in flex flex-col" style={{minHeight:'100%'}}>
-                                    <div className="info-box">Enter names separated by commas or new lines, then press <strong>Enter</strong>.</div>
+                                <div className="space-y-3 fade-in flex flex-col" style={{flex:1,minHeight:0}}>
                                     <div>
                                         <label className="field-label">Add Students</label>
-                                        <textarea className="field h-24" placeholder="e.g. John, Sarah, Mike, Emily" value={studentInput} onChange={e=>setStudentInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addStudents(studentInput);setStudentInput('');}}}/>
+                                        <textarea className="field h-24" placeholder="Names — commas or new lines, then Enter" value={studentInput} onChange={e=>setStudentInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addStudents(studentInput);setStudentInput('');}}}/>
                                         <button className="btn btn-primary mt-2" onClick={()=>{addStudents(studentInput);setStudentInput('');}}>
                                             <IPlus/> Add to List
                                         </button>
                                     </div>
-                                    <div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-black/10 min-h-[80px] max-h-[240px]">
+                                    <div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-black/10" style={{minHeight:'80px'}}>
                                         {students.length===0
                                             ?<p className="text-center py-5 italic" style={{color:'#64748b',fontSize:'0.8rem'}}>No students yet.</p>
                                             :students.map(s=>(
@@ -612,10 +641,10 @@
                                 </div>
                             )}
 
-                            {/* ─── Constraints tab ─── */}
-                            {panelTab==='constraints' && (
+                            {/* ─── Rules tab ─── */}
+                            {panelTab==='rules' && (
                                 <div className="space-y-4 fade-in">
-                                    <label className="field-label">Add Constraint</label>
+                                    <label className="field-label">Add Rule</label>
                                     <div className="space-y-3">
                                         <div className="flex gap-2">
                                             <button className={`ctype-card ${cType==='front'?'active':''}`} onClick={()=>{setCType('front');setCS1('');setCS2('');}}>
@@ -633,7 +662,7 @@
                                             <option value="">Student 2…</option>
                                             {students.filter(s=>s.name!==cS1).map(s=><option key={s.id} value={s.name}>{s.name}</option>)}
                                         </select>}
-                                        <button className="btn btn-secondary" onClick={addConstraint} disabled={!cS1||(cType==='separate'&&!cS2)}><IPlus/> Add Constraint</button>
+                                        <button className="btn btn-secondary" onClick={addConstraint} disabled={!cS1||(cType==='separate'&&!cS2)}><IPlus/> Add Rule</button>
                                     </div>
 
                                     {/* Flexibility */}
@@ -668,28 +697,22 @@
                                 </div>
                             )}
 
-                            {/* ─── Import/Export tab ─── */}
-                            {panelTab==='data' && (
-                                <div className="space-y-3 fade-in">
-                                    <label className="field-label">Export</label>
-                                    <button className="btn btn-secondary" onClick={exportAll}><IExport/> Export All Classes</button>
-                                    <button className="btn btn-secondary" onClick={exportCls}><IExport/> Export This Class</button>
-                                    <div className="divider"/>
-                                    <label className="field-label">Import</label>
-                                    <label className="btn btn-secondary" style={{cursor:'pointer'}}><IUpload/> Import from File<input type="file" onChange={importAll} className="hidden" accept=".json"/></label>
-                                    <p style={{fontSize:'0.68rem',color:'#64748b',lineHeight:1.5}}>Accepts both single-class and multi-class files. Imported classes are added to your library.</p>
-
-                                    {importWarn.length>0&&(
-                                        <div className="import-warning">
-                                            <div className="flex justify-between items-start mb-1">
-                                                <strong>{importWarn[0]}</strong>
-                                                <button onClick={()=>setImportWarn([])} style={{color:'#fde68a',background:'none',border:'none',cursor:'pointer',fontWeight:700,fontSize:'1rem'}}>×</button>
-                                            </div>
-                                            {importWarn.length>1&&<ul style={{listStyle:'disc',marginLeft:'1rem'}}>{importWarn.slice(1).map((w,i)=><li key={i}>{w}</li>)}</ul>}
-                                        </div>
-                                    )}
+                        </div>
+                        {importWarn.length>0&&(
+                            <div style={{padding:'0 1.2rem 0.5rem'}}>
+                                <div className="import-warning">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <strong>{importWarn[0]}</strong>
+                                        <button onClick={()=>setImportWarn([])} style={{color:'#fde68a',background:'none',border:'none',cursor:'pointer',fontWeight:700,fontSize:'1rem'}}>×</button>
+                                    </div>
+                                    {importWarn.length>1&&<ul style={{listStyle:'disc',marginLeft:'1rem'}}>{importWarn.slice(1).map((w,i)=><li key={i}>{w}</li>)}</ul>}
                                 </div>
-                            )}
+                            </div>
+                        )}
+                        <div className="panel-footer">
+                            <button className="panel-footer-btn" onClick={exportCls}><IExport/> Export class</button>
+                            <button className="panel-footer-btn" onClick={exportAll}><IExport/> All classes</button>
+                            <label className="panel-footer-btn" style={{cursor:'pointer'}}><IUpload/> Import<input type="file" onChange={importAll} className="hidden" accept=".json"/></label>
                         </div>
                     </div>
 
@@ -699,7 +722,7 @@
                             <div className="empty-state">
                                 <h3>Get started</h3>
                                 <p>Set up your room layout and add students to generate a seating plan.</p>
-                                <button onClick={()=>{setPanelOpen(true);setPanelTab(seats.size===0?'layout':'students');}}>
+                                <button onClick={()=>{setPanelOpen(true);setPanelTab(seats.size===0?'room':'students');}}>
                                     <IGear/> Open Setup
                                 </button>
                             </div>
