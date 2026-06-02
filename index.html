@@ -291,15 +291,23 @@
         .empty-state button:hover { box-shadow: 0 4px 14px rgba(59,130,246,0.55); }
 
         /* ── Print ── */
+        @page { size: landscape; margin: 1cm; }
+
+        .print-only { display: none; }
+
         @media print {
             .no-print, .top-bar, .panel-overlay, .setup-panel { display: none !important; }
+            .print-only { display: flex !important; }
             body { background: white; }
-            .grid-area { padding: 0.5rem; }
+            .grid-area { padding: 0.5rem; margin-left: 0 !important; }
             .seat { border: 1.5px solid #999 !important; background: #f9fafb !important; color: #000 !important; box-shadow: none !important; }
             .seat::after { display: none; }
             .seat.assigned { background: #e0f2fe !important; }
             .seat.not-available { opacity: 0 !important; }
             .board { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            .print-header { justify-content: space-between; align-items: baseline; margin-bottom: 0.4rem; font-family: 'Lora', Georgia, serif; }
+            .print-class-name { font-size: 1.05rem; font-weight: 700; color: #0f172a; }
+            .print-date { font-size: 0.78rem; color: #475569; }
         }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
@@ -322,13 +330,16 @@
         // ── Schema ──
         const makeNew = (name = 'New Class') => ({ version:'1.0', meta:{name,created:todayISO(),modified:todayISO()}, room:{rows:5,cols:6,seats:[]}, students:[], constraints:[] });
 
-        const serialize = ({className,classCreated,rows,cols,selectedSeats,students,constraints,seatingPlan}) => ({
+        const fmtDate = iso => iso ? new Date(iso+'T00:00:00').toLocaleDateString('en-NZ',{day:'numeric',month:'long',year:'numeric'}) : '';
+
+        const serialize = ({className,classCreated,rows,cols,selectedSeats,students,constraints,seatingPlan,planDate}) => ({
             version:'1.0',
             meta:{name:className,created:classCreated,modified:todayISO()},
             room:{rows,cols,seats:[...selectedSeats]},
             students:students.map(s=>s.name),
             constraints:constraints.map(c=>c.type==='front'?{type:'front',student:c.student1}:{type:'separate',students:[c.student1,c.student2]}),
-            _lastPlan:seatingPlan&&seatingPlan.size>0?[...seatingPlan]:null
+            _lastPlan:seatingPlan&&seatingPlan.size>0?[...seatingPlan]:null,
+            _planDate:seatingPlan&&seatingPlan.size>0?(planDate||null):null
         });
 
         const deserialize = (schema) => {
@@ -339,7 +350,8 @@
                 selectedSeats:new Set((schema.room?.seats??[]).filter(s=>{const[r,c]=s.split('-').map(Number);return r>=0&&r<rows&&c>=0&&c<cols;})),
                 students:(schema.students??[]).filter(s=>s&&typeof s==='string'&&s.trim()).map(name=>({name:name.trim(),id:Date.now()+Math.random()})),
                 constraints:(schema.constraints??[]).map(c=>({id:Date.now()+Math.random(),type:c.type,student1:c.type==='front'?c.student:c.students?.[0],student2:c.type==='separate'?c.students?.[1]:null})).filter(c=>c.student1),
-                seatingPlan:schema._lastPlan?new Map(schema._lastPlan):new Map()
+                seatingPlan:schema._lastPlan?new Map(schema._lastPlan):new Map(),
+                planDate:schema._planDate||null
             };
         };
 
@@ -415,6 +427,7 @@
             const [students,setStudents]=useState(init.students);
             const [constraints,setCons]=useState(init.constraints);
             const [plan,setPlan]=useState(init.seatingPlan);
+            const [planDate,setPlanDate]=useState(init.planDate??null);
 
             const [panelOpen,setPanelOpen]=useState(()=>init.students.length===0||init.selectedSeats.size===0);
             const [panelTab,setPanelTab]=useState('room');
@@ -437,9 +450,9 @@
             useEffect(()=>{
                 if(skipSave.current){skipSave.current=false;return;}
                 const cls=loadJSON(CK,{});
-                cls[classId]=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan});
+                cls[classId]=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan,planDate});
                 saveJSON(CK,cls);saveJSON(AK,classId);
-            },[classId,className,rows,cols,seats,students,constraints,plan]);
+            },[classId,className,rows,cols,seats,students,constraints,plan,planDate]);
 
             // Mouse up listener
             useEffect(()=>{const h=()=>setDragging(false);window.addEventListener('mouseup',h);return()=>window.removeEventListener('mouseup',h);},[]);
@@ -449,7 +462,7 @@
                 const s=cls[id];if(!s)return;const d=deserialize(s);
                 setClassId(id);setClassName(s.meta?.name??'Unnamed');setClassCreated(s.meta?.created??todayISO());
                 setRows(d.rows);setCols(d.cols);setSeats(d.selectedSeats);
-                setStudents(d.students);setCons(d.constraints);setPlan(d.seatingPlan);
+                setStudents(d.students);setCons(d.constraints);setPlan(d.seatingPlan);setPlanDate(d.planDate??null);
                 setReshuffleSim(null);setError('');setEditing(false);
                 saveJSON(AK,id);
                 if(d.students.length===0||d.selectedSeats.size===0){setPanelOpen(true);setPanelTab(d.selectedSeats.size===0?'room':'students');}
@@ -461,7 +474,7 @@
             const renameCls=(n)=>{const name=n.trim()||'Unnamed Class';setClassName(name);setClassIndex(p=>({...p,[classId]:name}));};
 
             // ── Export / Import ──
-            const exportCls=()=>{const s=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan});delete s._lastPlan;const b=new Blob([JSON.stringify(s,null,2)],{type:'application/json'});Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:`${className.replace(/[^a-z0-9]/gi,'-').toLowerCase()}-${todayISO()}.json`}).click();};
+            const exportCls=()=>{const s=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan,planDate});delete s._lastPlan;const b=new Blob([JSON.stringify(s,null,2)],{type:'application/json'});Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:`${className.replace(/[^a-z0-9]/gi,'-').toLowerCase()}-${todayISO()}.json`}).click();};
             const exportAll=()=>{const cls=loadJSON(CK,{});const p={version:'1.0',type:'collection',exported:todayISO(),classes:Object.values(cls).map(c=>{const{_lastPlan,...r}=c;return r;})};const b=new Blob([JSON.stringify(p,null,2)],{type:'application/json'});Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:`all-classes-${todayISO()}.json`}).click();};
             const importAll=(e)=>{const f=e.target.files[0];if(!f)return;e.target.value='';const r=new FileReader();r.onload=ev=>{try{const j=JSON.parse(ev.target.result);if(j.type==='collection'&&Array.isArray(j.classes)){const cls=loadJSON(CK,{});const ws=[];let n=0;for(const cd of j.classes){const{data,warnings}=validateImport(cd);cls[genId()]=data;n++;if(warnings.length)ws.push(`${data.meta.name}: ${warnings.join(' ')}`);}saveJSON(CK,cls);setClassIndex(Object.fromEntries(Object.entries(cls).map(([id,c])=>[id,c.meta?.name??'Unnamed'])));setImportWarn(ws.length?[`${n} class${n!==1?'es':''} imported:`, ...ws]:[`${n} class${n!==1?'es':''} imported.`]);}else{const{data,warnings}=validateImport(j);const id=genId(),cls=loadJSON(CK,{});cls[id]=data;saveJSON(CK,cls);setClassIndex(p=>({...p,[id]:data.meta.name}));setImportWarn(warnings.length?warnings:[`"${data.meta.name}" imported.`]);loadCls(id,cls);}}catch{setError('Invalid file.');}};r.readAsText(f);};
 
@@ -498,7 +511,7 @@
                     if(score>bestScore){bestScore=score;best=p;}
                 }
                 if(plan&&plan.size>0&&best){let same=0;for(const[n,s]of best.entries())if(plan.get(n)===s)same++;setReshuffleSim(Math.round(((best.size-same)/best.size)*100));}else setReshuffleSim(null);
-                setPlan(best);setError('');setEditing(false);
+                setPlan(best);setPlanDate(todayISO());setError('');setEditing(false);
             };
 
             // ── Drag swap ──
@@ -728,7 +741,11 @@
                             </div>
                         ) : (
                             <div style={{width:'100%',maxWidth:'960px'}}>
-                                <div className="board no-print">Board / Front of Class</div>
+                                <div className="print-only print-header">
+                                    <span className="print-class-name">{className}</span>
+                                    <span className="print-date">{planDate?`Seating set ${fmtDate(planDate)}`:''}</span>
+                                </div>
+                                <div className="board">Board / Front of Class</div>
                                 <div className="seating-grid" style={{gridTemplateColumns:`repeat(${cols}, minmax(0, 1fr))`,width:'100%'}} onMouseLeave={()=>setDragging(false)}>
                                     {Array.from({length:rows*cols}).map((_,idx)=>{
                                         const r=Math.floor(idx/cols),c=idx%cols,id=`${r}-${c}`,isSel=seats.has(id);
@@ -756,7 +773,7 @@
                                 </div>
                                 <div className="no-print" style={{textAlign:'center',marginTop:'1rem',fontSize:'0.75rem',color:'#94a3b8'}}>
                                     {editing&&`${seats.size} of ${rows*cols} seats selected`}
-                                    {!editing&&hasPlan&&`${plan.size} student${plan.size!==1?'s':''} placed`}
+                                    {!editing&&hasPlan&&<>{plan.size} student{plan.size!==1?'s':''} placed{planDate&&<> · <span style={{color:'#64748b'}}>Seating set {fmtDate(planDate)}</span></>}</>}
                                     {!editing&&!hasPlan&&isReady&&'Ready — press Generate'}
                                 </div>
                             </div>
