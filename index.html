@@ -337,7 +337,7 @@
             meta:{name:className,created:classCreated,modified:todayISO()},
             room:{rows,cols,seats:[...selectedSeats]},
             students:students.map(s=>s.name),
-            constraints:constraints.map(c=>c.type==='front'?{type:'front',student:c.student1}:{type:'separate',students:[c.student1,c.student2]}),
+            constraints:constraints.map(c=>c.type==='front'?{type:'front',student:c.student1}:c.type==='fixed'?{type:'fixed',student:c.student1,seat:c.seat}:{type:'separate',students:[c.student1,c.student2]}),
             _lastPlan:seatingPlan&&seatingPlan.size>0?[...seatingPlan]:null,
             _planDate:seatingPlan&&seatingPlan.size>0?(planDate||null):null
         });
@@ -349,7 +349,7 @@
                 rows,cols,
                 selectedSeats:new Set((schema.room?.seats??[]).filter(s=>{const[r,c]=s.split('-').map(Number);return r>=0&&r<rows&&c>=0&&c<cols;})),
                 students:(schema.students??[]).filter(s=>s&&typeof s==='string'&&s.trim()).map(name=>({name:name.trim(),id:Date.now()+Math.random()})),
-                constraints:(schema.constraints??[]).map(c=>({id:Date.now()+Math.random(),type:c.type,student1:c.type==='front'?c.student:c.students?.[0],student2:c.type==='separate'?c.students?.[1]:null})).filter(c=>c.student1),
+                constraints:(schema.constraints??[]).map(c=>({id:Date.now()+Math.random(),type:c.type,student1:(c.type==='front'||c.type==='fixed')?c.student:c.students?.[0],student2:c.type==='separate'?c.students?.[1]:null,seat:c.type==='fixed'?c.seat:undefined})).filter(c=>c.student1),
                 seatingPlan:schema._lastPlan?new Map(schema._lastPlan):new Map(),
                 planDate:schema._planDate||null
             };
@@ -376,6 +376,10 @@
                 }else if(c.type==='separate'){
                     const [s1,s2]=c.students??[];
                     if(!s1||!s2||s1===s2||!stSet.has(s1)||!stSet.has(s2)){w.push(`Separate: invalid pair — skipped.`);continue;}
+                    cons.push(c);
+                }else if(c.type==='fixed'){
+                    if(!c.student||!stSet.has(c.student)){w.push(`Fixed seat: "${c.student||'?'}" not found — skipped.`);continue;}
+                    if(!c.seat||!allValid.has(c.seat)){w.push(`Fixed seat for "${c.student}" is outside the room — skipped.`);continue;}
                     cons.push(c);
                 }else{w.push(`Unknown type "${c.type}" skipped.`);}
             }
@@ -435,6 +439,7 @@
             const [cType,setCType]=useState('front');
             const [cS1,setCS1]=useState('');
             const [cS2,setCS2]=useState('');
+            const [cSeat,setCSeat]=useState('');
             const [isDragging,setDragging]=useState(false);
             const [dragMode,setDragMode]=useState(true);
             const [draggedStudent,setDraggedStu]=useState(null);
@@ -487,7 +492,14 @@
             const removeStudent=(id)=>{const st=students.find(s=>s.id===id);setStudents(students.filter(s=>s.id!==id));if(st)setCons(constraints.filter(c=>c.student1!==st.name&&c.student2!==st.name));setPlan(new Map());};
 
             // ── Constraints ──
-            const addConstraint=()=>{if(!cS1||(cType==='separate'&&!cS2))return;const nc={id:Date.now(),type:cType,student1:cS1,student2:cType==='separate'?cS2:null};const dup=constraints.some(c=>c.type===nc.type&&((c.student1===nc.student1&&c.student2===nc.student2)||(c.type==='separate'&&c.student1===nc.student2&&c.student2===nc.student1)));if(!dup){setCons([...constraints,nc]);setCS1('');setCS2('');setPlan(new Map());}};
+            const addConstraint=()=>{
+                if(!cS1||(cType==='separate'&&!cS2)||(cType==='fixed'&&!cSeat))return;
+                const nc={id:Date.now(),type:cType,student1:cS1,student2:cType==='separate'?cS2:null,seat:cType==='fixed'?cSeat:undefined};
+                const dup=cType==='fixed'
+                    ?constraints.some(c=>c.type==='fixed'&&(c.student1===cS1||c.seat===cSeat))
+                    :constraints.some(c=>c.type===nc.type&&((c.student1===nc.student1&&c.student2===nc.student2)||(c.type==='separate'&&c.student1===nc.student2&&c.student2===nc.student1)));
+                if(!dup){setCons([...constraints,nc]);setCS1('');setCS2('');setCSeat('');setPlan(new Map());}
+            };
 
             // ── Generate ──
             const generate=()=>{
@@ -497,6 +509,10 @@
                 let best=null,bestScore=-Infinity;
                 for(let i=0;i<200;i++){
                     const avail=[...seats],pool=[...students].sort(()=>Math.random()-0.5),p=new Map();let score=0;
+                    for(const req of constraints.filter(c=>c.type==='fixed')){
+                        const idx=pool.findIndex(s=>s.name===req.student1);if(idx===-1)continue;
+                        if(req.seat&&avail.includes(req.seat)){p.set(req.student1,req.seat);avail.splice(avail.indexOf(req.seat),1);pool.splice(idx,1);}
+                    }
                     for(const req of constraints.filter(c=>c.type==='front')){
                         const idx=pool.findIndex(s=>s.name===req.student1);if(idx===-1)continue;
                         const conflicts=constraints.filter(c=>c.type==='separate'&&(c.student1===req.student1||c.student2===req.student1)).map(c=>p.get(c.student1===req.student1?c.student2:c.student1)).filter(Boolean);
@@ -660,11 +676,14 @@
                                     <label className="field-label">Add Rule</label>
                                     <div className="space-y-3">
                                         <div className="flex gap-2">
-                                            <button className={`ctype-card ${cType==='front'?'active':''}`} onClick={()=>{setCType('front');setCS1('');setCS2('');}}>
+                                            <button className={`ctype-card ${cType==='front'?'active':''}`} onClick={()=>{setCType('front');setCS1('');setCS2('');setCSeat('');}}>
                                                 <div className="ctype-icon">⬆️</div><span className="ctype-title">Sit at Front</span><span className="ctype-sub">1 student</span>
                                             </button>
-                                            <button className={`ctype-card ${cType==='separate'?'active':''}`} onClick={()=>{setCType('separate');setCS1('');setCS2('');}}>
+                                            <button className={`ctype-card ${cType==='separate'?'active':''}`} onClick={()=>{setCType('separate');setCS1('');setCS2('');setCSeat('');}}>
                                                 <div className="ctype-icon">↔️</div><span className="ctype-title">Keep Separated</span><span className="ctype-sub">2 students</span>
+                                            </button>
+                                            <button className={`ctype-card ${cType==='fixed'?'active':''}`} onClick={()=>{setCType('fixed');setCS1('');setCS2('');setCSeat('');}}>
+                                                <div className="ctype-icon">📍</div><span className="ctype-title">Fixed Seat</span><span className="ctype-sub">exact seat</span>
                                             </button>
                                         </div>
                                         <select className="field" value={cS1} onChange={e=>setCS1(e.target.value)}>
@@ -675,7 +694,11 @@
                                             <option value="">Student 2…</option>
                                             {students.filter(s=>s.name!==cS1).map(s=><option key={s.id} value={s.name}>{s.name}</option>)}
                                         </select>}
-                                        <button className="btn btn-secondary" onClick={addConstraint} disabled={!cS1||(cType==='separate'&&!cS2)}><IPlus/> Add Rule</button>
+                                        {cType==='fixed'&&<select className="field" value={cSeat} onChange={e=>setCSeat(e.target.value)} disabled={!cS1}>
+                                            <option value="">Pick a seat…</option>
+                                            {[...seats].sort((a,b)=>{const[ar,ac]=a.split('-').map(Number),[br,bc]=b.split('-').map(Number);return ar-br||ac-bc;}).filter(id=>!constraints.some(c=>c.type==='fixed'&&c.seat===id)).map(id=>{const[r,c]=id.split('-').map(Number);return <option key={id} value={id}>Row {r+1}, Seat {c+1}</option>;})}
+                                        </select>}
+                                        <button className="btn btn-secondary" onClick={addConstraint} disabled={!cS1||(cType==='separate'&&!cS2)||(cType==='fixed'&&!cSeat)}><IPlus/> Add Rule</button>
                                     </div>
 
                                     {/* Flexibility */}
@@ -703,6 +726,7 @@
                                                 <>
                                                     {constraints.some(c=>c.type==='front')&&<div className="space-y-1"><p className="text-xs font-semibold uppercase tracking-wider px-1" style={{color:'#475569'}}>⬆ Front</p>{constraints.filter(c=>c.type==='front').map(c=><div key={c.id} className="chip"><strong style={{color:'#fff'}}>{c.student1}</strong><button onClick={()=>setCons(constraints.filter(x=>x.id!==c.id))} style={{color:'#f87171',fontWeight:700,marginLeft:'0.5rem',fontSize:'1rem',lineHeight:1,border:'none',background:'none',cursor:'pointer'}}>×</button></div>)}</div>}
                                                     {constraints.some(c=>c.type==='separate')&&<div className="space-y-1"><p className="text-xs font-semibold uppercase tracking-wider px-1" style={{color:'#475569'}}>↔ Separated</p>{constraints.filter(c=>c.type==='separate').map(c=><div key={c.id} className="chip"><span><strong style={{color:'#fff'}}>{c.student1}</strong><span style={{color:'#64748b',margin:'0 0.25rem'}}>+</span><strong style={{color:'#fff'}}>{c.student2}</strong></span><button onClick={()=>setCons(constraints.filter(x=>x.id!==c.id))} style={{color:'#f87171',fontWeight:700,marginLeft:'0.5rem',fontSize:'1rem',lineHeight:1,border:'none',background:'none',cursor:'pointer'}}>×</button></div>)}</div>}
+                                                    {constraints.some(c=>c.type==='fixed')&&<div className="space-y-1"><p className="text-xs font-semibold uppercase tracking-wider px-1" style={{color:'#475569'}}>📍 Fixed seat</p>{constraints.filter(c=>c.type==='fixed').map(c=>{const[r,cc]=(c.seat||'').split('-').map(Number);return <div key={c.id} className="chip"><span><strong style={{color:'#fff'}}>{c.student1}</strong><span style={{color:'#64748b',margin:'0 0.25rem'}}>→</span>{isNaN(r)?'—':`Row ${r+1}, Seat ${cc+1}`}</span><button onClick={()=>setCons(constraints.filter(x=>x.id!==c.id))} style={{color:'#f87171',fontWeight:700,marginLeft:'0.5rem',fontSize:'1rem',lineHeight:1,border:'none',background:'none',cursor:'pointer'}}>×</button></div>;})}</div>}
                                                 </>
                                             )}
                                         </div>
