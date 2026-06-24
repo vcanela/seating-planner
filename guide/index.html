@@ -6,11 +6,11 @@
     <title>How to Use — Classroom Seating Planner</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         body {
-            margin: 0; font-family: 'Inter', system-ui, sans-serif;
+            margin: 0; font-family: 'Lora', Georgia, serif;
             background: #f1f5f9; color: #1e293b; line-height: 1.6;
         }
 
@@ -47,6 +47,16 @@
             box-shadow: 0 1px 4px rgba(0,0,0,0.05);
         }
         .intro p { margin: 0; font-size: 0.95rem; color: #475569; }
+
+        /* ── Section heading ── */
+        .section-head {
+            display: flex; align-items: center; gap: 0.6rem;
+            margin: 2.25rem 0 0.25rem; padding: 0 0.25rem;
+        }
+        .section-head:first-child { margin-top: 0; }
+        .section-head .badge { font-size: 1.35rem; }
+        .section-head h2 { margin: 0; font-size: 1.15rem; font-weight: 700; color: #1e293b; }
+        .section-head .line { flex: 1; height: 1px; background: #e2e8f0; }
 
         /* ── Steps ── */
         .steps { display: flex; flex-direction: column; gap: 1.25rem; }
@@ -109,9 +119,14 @@
 
 <div class="topbar">
     <div class="logo">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        <svg width="15" height="13" viewBox="0 0 22 18" fill="white">
+            <rect x="0" y="0" width="22" height="3" rx="1.5"/>
+            <rect x="0" y="6" width="6" height="4.5" rx="1.2"/>
+            <rect x="8" y="6" width="6" height="4.5" rx="1.2"/>
+            <rect x="16" y="6" width="6" height="4.5" rx="1.2"/>
+            <rect x="0" y="13" width="6" height="4.5" rx="1.2"/>
+            <rect x="8" y="13" width="6" height="4.5" rx="1.2"/>
+            <rect x="16" y="13" width="6" height="4.5" rx="1.2"/>
         </svg>
     </div>
     <h1>Seating Planner</h1>
@@ -123,7 +138,14 @@
 <div class="page">
 
     <div class="intro">
-        <p>A quick walkthrough of the five things you need to know. The whole workflow takes under two minutes the first time.</p>
+        <p>The planner does two jobs that share one student list: build a <strong>seating chart</strong> for your room, and split the class into <strong>random groups</strong>. Everything lives behind the <strong>gear icon</strong> (top-right) and the <strong>Seating / Groups</strong> switch at the top. Here's the whole thing, click by click.</p>
+    </div>
+
+    <!-- ════ SECTION: SETUP ════ -->
+    <div class="section-head">
+        <span class="badge">🗂️</span>
+        <h2>Getting set up</h2>
+        <span class="line"></span>
     </div>
 
     <div class="steps">
@@ -132,9 +154,9 @@
         <div class="step">
             <div class="step-number">1</div>
             <div class="step-body">
-                <h2><span class="icon">🗂️</span> Create or select a class</h2>
-                <p>Click the <strong>gear icon</strong> (top-right) to open the setup panel. On the <strong>Layout</strong> tab you can rename the current class, create a new one, duplicate it, or switch between classes using the dropdown.</p>
-                <p>Each class stores its own room layout, student list, constraints, and last seating plan independently.</p>
+                <h2><span class="icon">🏫</span> Create or select a class</h2>
+                <p>Click the <strong>gear icon</strong> in the top-right corner to open the setup panel. The <strong>class name</strong> sits at the very top of the panel — click it to rename. Just below, use the <strong>dropdown</strong> to switch between classes, or the <strong>New</strong>, <strong>Copy</strong> and <strong>delete</strong> buttons beside it.</p>
+                <p>Each class remembers its own room layout, students, rules, groups, and last results — independently.</p>
             </div>
         </div>
 
@@ -143,9 +165,9 @@
             <div class="step-number">2</div>
             <div class="step-body">
                 <h2><span class="icon">🪑</span> Draw the room layout</h2>
-                <p>Set the number of <strong>rows</strong> and <strong>columns</strong> to match your room, then click <strong>Edit Seat Layout</strong>. The panel stays open — click or drag directly on the grid to toggle individual seats on or off. Gaps in the grid (non-available seats) are simply left untoggled.</p>
-                <p>Click <strong>Done Editing Layout</strong> when finished.</p>
-                <div class="tip"><strong>Tip:</strong> The top of the grid is always the front of the room (Board / Front of Class).</div>
+                <p>On the <strong>Room</strong> tab, set the number of <strong>rows</strong> and <strong>columns</strong> to match your classroom. Then click <strong>Click to Edit Seat Layout</strong> — the panel stays open and you click or drag directly on the grid to switch individual seats on or off. Leave gaps where there are no desks.</p>
+                <p>Click <strong>Done Editing Layout</strong> when you're finished.</p>
+                <div class="tip"><strong>Tip:</strong> The top of the grid is always the front of the room (the <strong>Board / Front of Class</strong> bar), so students can orient themselves.</div>
             </div>
         </div>
 
@@ -153,26 +175,38 @@
         <div class="step">
             <div class="step-number">3</div>
             <div class="step-body">
-                <h2><span class="icon">👩‍🎓</span> Add students</h2>
-                <p>Switch to the <strong>Students</strong> tab. Type names separated by commas or new lines, then press <strong>Enter</strong> or click <strong>Add to List</strong>. Duplicates are skipped automatically.</p>
-                <p>The counter at the bottom shows students vs. seats — you need at least as many seats as students before you can generate a plan.</p>
+                <h2><span class="icon">👩‍🎓</span> Add your students</h2>
+                <p>Switch to the <strong>Students</strong> tab. Type names separated by <strong>commas or new lines</strong>, then press <strong>Enter</strong> or click <strong>Add to List</strong>. Duplicate names are skipped automatically. Remove a name by hovering it and clicking the ✕.</p>
+                <p>This one student list is shared by both the seating chart and the groups.</p>
             </div>
         </div>
+    </div>
+
+    <!-- ════ SECTION: SEATING ════ -->
+    <div class="section-head">
+        <span class="badge">🪑</span>
+        <h2>Make a seating chart</h2>
+        <span class="line"></span>
+    </div>
+
+    <div class="steps">
 
         <!-- Step 4 -->
         <div class="step">
             <div class="step-number">4</div>
             <div class="step-body">
-                <h2><span class="icon">⚙️</span> Set constraints <span class="tag tag-amber">optional</span></h2>
-                <p>On the <strong>Constraints</strong> tab, choose a constraint type and select the relevant student(s):</p>
+                <h2><span class="icon">⚙️</span> Set seating rules <span class="tag tag-amber">optional</span></h2>
+                <p>On the <strong>Rules</strong> tab, pick a rule type, choose the student(s), and click <strong>Add Rule</strong>:</p>
                 <div class="constraint-grid">
-                    <span class="label">⬆ Sit at Front</span>
-                    <span class="desc">Ensures a student is placed in the front rows.</span>
-                    <span class="label">↔ Keep Separated</span>
-                    <span class="desc">Keeps two students away from each other.</span>
+                    <span class="label">⬆️ Sit at Front</span>
+                    <span class="desc">Keeps a student in the front rows.</span>
+                    <span class="label">↔️ Keep Separated</span>
+                    <span class="desc">Keeps two students apart from each other.</span>
+                    <span class="label">📍 Fixed Seat</span>
+                    <span class="desc">Pins a student to one exact seat every time — ideal for a wheelchair user or a fixed accessibility need. Pick the student, then choose the seat (listed as Row / Seat).</span>
                 </div>
-                <p style="margin-top:0.65rem;">The <strong>Flexibility</strong> bar shows how constrained the plan is overall. Many constraints reduce variation between reshuffles.</p>
-                <p>Use <strong>Hide</strong> to collapse the active constraints list — useful if students are nearby and you don't want them reading the screen.</p>
+                <p style="margin-top:0.65rem;">The <strong>Flexibility</strong> bar shows how constrained the chart is overall — lots of rules mean less variation between reshuffles.</p>
+                <p>Use <strong>Hide</strong> to collapse the rules list if students are nearby and you'd rather they didn't read it.</p>
             </div>
         </div>
 
@@ -181,23 +215,84 @@
             <div class="step-number">5</div>
             <div class="step-body">
                 <h2><span class="icon">🔀</span> Generate &amp; refine</h2>
-                <p>Close the panel and click <strong>Generate</strong> in the top bar. The planner runs 200 random arrangements and picks the one that best satisfies all constraints.</p>
-                <p>Click <strong>Reshuffle</strong> at any time to produce a new arrangement. The banner shows what percentage of seats changed — low percentages mean constraints are limiting variation.</p>
-                <p><strong>Drag students</strong> on the grid to manually swap seats after generating.</p>
-                <div class="tip"><strong>Print:</strong> Click <strong>Print</strong> in the top bar for a clean, ink-friendly layout with no UI chrome.</div>
+                <p>Make sure <strong>Seating</strong> is selected in the top-bar switch, close the panel, and click <strong>Generate</strong>. The planner tries 200 random arrangements and keeps the one that best satisfies your rules.</p>
+                <p>Click <strong>Reshuffle</strong> any time for a fresh arrangement — the banner tells you what percentage of seats changed. Need a tweak? <strong>Drag a student</strong> to another seat to swap the two.</p>
+                <p>The date the chart was set shows under the grid, so you can tell at a glance whether you've already refreshed it this week.</p>
+                <div class="tip"><strong>Print:</strong> Click <strong>Print</strong> for a clean landscape page — class name, date, the board marker, and no on-screen clutter.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════ SECTION: GROUPS ════ -->
+    <div class="section-head">
+        <span class="badge">👥</span>
+        <h2>Form random groups</h2>
+        <span class="line"></span>
+    </div>
+
+    <div class="steps">
+
+        <!-- Step 6 -->
+        <div class="step">
+            <div class="step-number">6</div>
+            <div class="step-body">
+                <h2><span class="icon">🔁</span> Switch to Groups mode</h2>
+                <p>At the top of the screen, click <strong>Groups</strong> in the <strong>Seating / Groups</strong> switch. The main area changes to group cards, and the setup panel now shows just two tabs: <strong>Students</strong> (the same shared list) and <strong>Groups</strong>.</p>
+                <p>Your seating chart isn't lost — flip back to <strong>Seating</strong> any time and it's exactly as you left it.</p>
             </div>
         </div>
 
-        <!-- Bonus -->
+        <!-- Step 7 -->
+        <div class="step">
+            <div class="step-number">7</div>
+            <div class="step-body">
+                <h2><span class="icon">🔢</span> Choose group size &amp; rules</h2>
+                <p>Open the <strong>Groups</strong> tab. Under <strong>Grouping</strong>, pick how you want to split the class:</p>
+                <div class="constraint-grid">
+                    <span class="label">Number of groups</span>
+                    <span class="desc">You set how many groups; the planner spreads students evenly across them.</span>
+                    <span class="label">Students per group</span>
+                    <span class="desc">You set the size; the planner works out how many groups that makes.</span>
+                </div>
+                <p style="margin-top:0.65rem;">Use the big <strong>−</strong> and <strong>+</strong> buttons to adjust the number, or click the box and type it directly.</p>
+                <p>Then add <strong>group rules</strong> the same way as seating — pick the type, choose two students, and click <strong>Add Rule</strong>:</p>
+                <div class="constraint-grid">
+                    <span class="label">🤝 Same Group</span>
+                    <span class="desc">Two students always end up together (this chains — link A&amp;B and B&amp;C and all three stay together).</span>
+                    <span class="label">🚫 Keep Apart</span>
+                    <span class="desc">Two students are always placed in different groups.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 8 -->
+        <div class="step">
+            <div class="step-number">8</div>
+            <div class="step-body">
+                <h2><span class="icon">🎲</span> Form groups &amp; refine</h2>
+                <p>Click <strong>Form Groups</strong> in the top bar. The planner tries 300 arrangements and keeps the one that balances group sizes while respecting every rule. Click <strong>Reshuffle Groups</strong> for a different split.</p>
+                <p>The result shows as clear, colour-coded cards — one per group, easy for students to read off the board. Want to move someone? <strong>Drag their name onto another group's card</strong>.</p>
+                <div class="tip"><strong>Print:</strong> The <strong>Print</strong> button gives a landscape page of the group cards with the class name and date.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════ SECTION: SAVING ════ -->
+    <div class="section-head">
+        <span class="badge">💾</span>
+        <h2>Saving &amp; sharing</h2>
+        <span class="line"></span>
+    </div>
+
+    <div class="steps">
         <div class="step">
             <div class="step-number" style="font-size:1rem; padding-top:1.5rem; color:#cbd5e1;">💾</div>
             <div class="step-body">
                 <h2>Import &amp; Export</h2>
-                <p>On the <strong>Import/Export</strong> tab you can save a single class or all classes as a JSON file. Share a file with a colleague or move your library to another device by importing it back — imported classes are added to your existing library without overwriting anything.</p>
-                <p>All data is stored in your browser's local storage; nothing is sent to a server.</p>
+                <p>At the <strong>bottom of the setup panel</strong> there's a strip with <strong>Export class</strong>, <strong>All classes</strong>, and <strong>Import</strong>. Save a single class or your whole library as a file, hand it to a colleague, or move it to another device by importing it back. Imported classes are added alongside your existing ones — nothing is overwritten.</p>
+                <p>Everything is stored in your browser on this device; nothing is sent to a server. So it's worth exporting a backup now and then.</p>
             </div>
         </div>
-
     </div>
 </div>
 
