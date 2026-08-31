@@ -367,7 +367,16 @@
         .groups-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; width: 100%; }
         .group-card { border: 1.5px solid #e2e8f0; border-radius: 12px; background: #fff; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .group-card-header { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.9rem; font-weight: 700; color: #fff; font-size: 0.95rem; }
-        .group-count { font-size: 0.7rem; background: rgba(255,255,255,0.25); border-radius: 99px; padding: 0.05rem 0.5rem; font-weight: 700; }
+        .group-count { font-size: 0.7rem; background: rgba(255,255,255,0.25); border-radius: 99px; padding: 0.05rem 0.5rem; font-weight: 700; flex-shrink: 0; margin-left: 0.5rem; }
+        .group-name-input {
+            flex: 1; min-width: 0; background: transparent; border: none;
+            border-bottom: 1px dashed transparent; border-radius: 3px;
+            font-family: inherit; font-size: 0.95rem; font-weight: 700; color: #fff;
+            padding: 0.05rem 0.2rem; outline: none; transition: all 0.15s;
+        }
+        .group-name-input::placeholder { color: #fff; opacity: 1; }
+        .group-name-input:hover { border-bottom-color: rgba(255,255,255,0.55); }
+        .group-name-input:focus { border-bottom-color: #fff; background: rgba(255,255,255,0.16); }
         .group-members { padding: 0.5rem; display: flex; flex-direction: column; gap: 0.3rem; min-height: 2.5rem; }
         .group-member { padding: 0.4rem 0.6rem; border-radius: 7px; background: #f8fafc; font-size: 0.9rem; font-weight: 600; color: #1e293b; text-align: center; word-break: break-word; cursor: grab; transition: background 0.12s, transform 0.12s; }
         .group-member:hover { background: #eef2f7; }
@@ -423,6 +432,7 @@
             .print-date { font-size: 0.78rem; color: #475569; }
             .group-card { box-shadow: none !important; break-inside: avoid; }
             .group-card-header, .group-member { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            .group-name-print { font-size: 0.95rem; font-weight: 700; color: #fff; }
         }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
@@ -447,13 +457,13 @@
 
         const fmtDate = iso => iso ? new Date(iso+'T00:00:00').toLocaleDateString('en-NZ',{day:'numeric',month:'long',year:'numeric'}) : '';
 
-        const serialize = ({className,classCreated,rows,cols,selectedSeats,students,constraints,seatingPlan,planDate,groupMode,groupCount,groupSize,groupRules,inheritApart,groups,groupsDate}) => ({
+        const serialize = ({className,classCreated,rows,cols,selectedSeats,students,constraints,seatingPlan,planDate,groupMode,groupCount,groupSize,groupRules,inheritApart,groupNames,groups,groupsDate}) => ({
             version:'1.0',
             meta:{name:className,created:classCreated,modified:todayISO()},
             room:{rows,cols,seats:[...selectedSeats]},
             students:students.map(s=>s.name),
             constraints:constraints.map(c=>c.type==='front'?{type:'front',student:c.student1}:c.type==='fixed'?{type:'fixed',student:c.student1,seat:c.seat}:{type:'separate',students:[c.student1,c.student2]}),
-            groups:{mode:groupMode??'count', count:groupCount??4, size:groupSize??4, inheritSeparate:inheritApart!==false, rules:(groupRules??[]).map(r=>({type:r.type,students:[r.student1,r.student2]}))},
+            groups:{mode:groupMode??'count', count:groupCount??4, size:groupSize??4, inheritSeparate:inheritApart!==false, names:(groupNames??[]).map(n=>typeof n==='string'?n:''), rules:(groupRules??[]).map(r=>({type:r.type,students:[r.student1,r.student2]}))},
             _lastPlan:seatingPlan&&seatingPlan.size>0?[...seatingPlan]:null,
             _planDate:seatingPlan&&seatingPlan.size>0?(planDate||null):null,
             _lastGroups:(groups&&groups.length)?groups:null,
@@ -472,6 +482,7 @@
                 planDate:schema._planDate||null,
                 groupMode:schema.groups?.mode==='size'?'size':'count',
                 inheritApart:schema.groups?.inheritSeparate!==false,
+                groupNames:Array.isArray(schema.groups?.names)?schema.groups.names.map(n=>typeof n==='string'?n.slice(0,40):''):[],
                 groupCount:Math.max(2,Math.min(99,schema.groups?.count??4)),
                 groupSize:Math.max(2,Math.min(99,schema.groups?.size??4)),
                 groupRules:(schema.groups?.rules??[]).map(r=>({id:Date.now()+Math.random(),type:r.type,student1:r.students?.[0],student2:r.students?.[1]})).filter(r=>r.student1&&r.student2&&(r.type==='together'||r.type==='apart')),
@@ -517,7 +528,7 @@
             const groupCount=Math.max(2,Math.min(99,json.groups?.count??4));
             const groupSize=Math.max(2,Math.min(99,json.groups?.size??4));
             const groupMode=json.groups?.mode==='size'?'size':'count';
-            return{data:{version:'1.0',meta:{name:json.meta?.name||'Imported',created:json.meta?.created||todayISO(),modified:todayISO()},room:{rows,cols,seats},students,constraints:cons,groups:{mode:groupMode,count:groupCount,size:groupSize,inheritSeparate:json.groups?.inheritSeparate!==false,rules:grules}},warnings:w};
+            return{data:{version:'1.0',meta:{name:json.meta?.name||'Imported',created:json.meta?.created||todayISO(),modified:todayISO()},room:{rows,cols,seats},students,constraints:cons,groups:{mode:groupMode,count:groupCount,size:groupSize,inheritSeparate:json.groups?.inheritSeparate!==false,names:Array.isArray(json.groups?.names)?json.groups.names.map(n=>typeof n==='string'?n.slice(0,40):''):[],rules:grules}},warnings:w};
         };
 
         // Migrate old format
@@ -599,6 +610,7 @@
             const [groupSize,setGroupSize]=useState(init.groupSize??4);
             const [groupRules,setGroupRules]=useState(init.groupRules??[]);
             const [inheritApart,setInheritApart]=useState(init.inheritApart!==false);
+            const [groupNames,setGroupNames]=useState(init.groupNames??[]);
             const [groups,setGroups]=useState(init.groups??null);
             const [groupsDate,setGroupsDate]=useState(init.groupsDate??null);
             const [gType,setGType]=useState('together');
@@ -628,9 +640,9 @@
             useEffect(()=>{
                 if(skipSave.current){skipSave.current=false;return;}
                 const cls=loadJSON(CK,{});
-                cls[classId]=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan,planDate,groupMode:groupBy,groupCount,groupSize,groupRules,inheritApart,groups,groupsDate});
+                cls[classId]=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan,planDate,groupMode:groupBy,groupCount,groupSize,groupRules,inheritApart,groupNames,groups,groupsDate});
                 saveJSON(CK,cls);saveJSON(AK,classId);
-            },[classId,className,rows,cols,seats,students,constraints,plan,planDate,groupBy,groupCount,groupSize,groupRules,inheritApart,groups,groupsDate]);
+            },[classId,className,rows,cols,seats,students,constraints,plan,planDate,groupBy,groupCount,groupSize,groupRules,inheritApart,groupNames,groups,groupsDate]);
 
             // Mouse up listener
             useEffect(()=>{const h=()=>setDragging(false);window.addEventListener('mouseup',h);return()=>window.removeEventListener('mouseup',h);},[]);
@@ -641,7 +653,7 @@
                 setClassId(id);setClassName(s.meta?.name??'Unnamed');setClassCreated(s.meta?.created??todayISO());
                 setRows(d.rows);setCols(d.cols);setSeats(d.selectedSeats);
                 setStudents(d.students);setCons(d.constraints);setPlan(d.seatingPlan);setPlanDate(d.planDate??null);
-                setGroupBy(d.groupMode??'count');setGroupCount(d.groupCount??4);setGroupSize(d.groupSize??4);setGroupRules(d.groupRules??[]);setInheritApart(d.inheritApart!==false);setGroups(d.groups??null);setGroupsDate(d.groupsDate??null);
+                setGroupBy(d.groupMode??'count');setGroupCount(d.groupCount??4);setGroupSize(d.groupSize??4);setGroupRules(d.groupRules??[]);setInheritApart(d.inheritApart!==false);setGroupNames(d.groupNames??[]);setGroups(d.groups??null);setGroupsDate(d.groupsDate??null);
                 setGS1('');setGS2('');setDraggedGroupStu(null);
                 setReshuffleSim(null);setError('');setEditing(false);
                 saveJSON(AK,id);
@@ -649,12 +661,12 @@
             };
             const switchCls=(id)=>{const cls=loadJSON(CK,{});loadCls(id,cls);};
             const createCls=()=>{const id=genId(),s=makeNew('New Class'),cls=loadJSON(CK,{});cls[id]=s;saveJSON(CK,cls);setClassIndex(p=>({...p,[id]:s.meta.name}));loadCls(id,cls);};
-            const dupCls=()=>{const id=genId(),cur=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan,groupMode:groupBy,groupCount,groupSize,groupRules,inheritApart}),copy={...cur,meta:{...cur.meta,name:`${className} (copy)`,created:todayISO(),modified:todayISO()},_lastPlan:null,_lastGroups:null};const cls=loadJSON(CK,{});cls[id]=copy;saveJSON(CK,cls);setClassIndex(p=>({...p,[id]:copy.meta.name}));loadCls(id,cls);};
+            const dupCls=()=>{const id=genId(),cur=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan,groupMode:groupBy,groupCount,groupSize,groupRules,inheritApart,groupNames}),copy={...cur,meta:{...cur.meta,name:`${className} (copy)`,created:todayISO(),modified:todayISO()},_lastPlan:null,_lastGroups:null};const cls=loadJSON(CK,{});cls[id]=copy;saveJSON(CK,cls);setClassIndex(p=>({...p,[id]:copy.meta.name}));loadCls(id,cls);};
             const delCls=()=>{if(!window.confirm(`Delete "${className}"?`))return;const cls=loadJSON(CK,{});delete cls[classId];const rem=Object.keys(cls);if(!rem.length){const nid=genId();cls[nid]=makeNew('My Class');rem.push(nid);}saveJSON(CK,cls);setClassIndex(Object.fromEntries(Object.entries(cls).map(([id,c])=>[id,c.meta?.name??'Unnamed'])));loadCls(rem[0],cls);};
             const renameCls=(n)=>{const name=n.trim()||'Unnamed Class';setClassName(name);setClassIndex(p=>({...p,[classId]:name}));};
 
             // ── Export / Import ──
-            const exportCls=()=>{const s=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan,planDate,groupMode:groupBy,groupCount,groupSize,groupRules,inheritApart,groups,groupsDate});delete s._lastPlan;delete s._lastGroups;const b=new Blob([JSON.stringify(s,null,2)],{type:'application/json'});Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:`${className.replace(/[^a-z0-9]/gi,'-').toLowerCase()}-${todayISO()}.json`}).click();};
+            const exportCls=()=>{const s=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan,planDate,groupMode:groupBy,groupCount,groupSize,groupRules,inheritApart,groupNames,groups,groupsDate});delete s._lastPlan;delete s._lastGroups;const b=new Blob([JSON.stringify(s,null,2)],{type:'application/json'});Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:`${className.replace(/[^a-z0-9]/gi,'-').toLowerCase()}-${todayISO()}.json`}).click();};
             const exportAll=()=>{const cls=loadJSON(CK,{});const p={version:'1.0',type:'collection',exported:todayISO(),classes:Object.values(cls).map(c=>{const{_lastPlan,...r}=c;return r;})};const b=new Blob([JSON.stringify(p,null,2)],{type:'application/json'});Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:`all-classes-${todayISO()}.json`}).click();};
             const importAll=(e)=>{const f=e.target.files[0];if(!f)return;e.target.value='';const r=new FileReader();r.onload=ev=>{try{const j=JSON.parse(ev.target.result);if(j.type==='collection'&&Array.isArray(j.classes)){const cls=loadJSON(CK,{});const ws=[];let n=0;for(const cd of j.classes){const{data,warnings}=validateImport(cd);cls[genId()]=data;n++;if(warnings.length)ws.push(`${data.meta.name}: ${warnings.join(' ')}`);}saveJSON(CK,cls);setClassIndex(Object.fromEntries(Object.entries(cls).map(([id,c])=>[id,c.meta?.name??'Unnamed'])));setImportWarn(ws.length?[`${n} class${n!==1?'es':''} imported:`, ...ws]:[`${n} class${n!==1?'es':''} imported.`]);}else{const{data,warnings}=validateImport(j);const id=genId(),cls=loadJSON(CK,{});cls[id]=data;saveJSON(CK,cls);setClassIndex(p=>({...p,[id]:data.meta.name}));setImportWarn(warnings.length?warnings:[`"${data.meta.name}" imported.`]);loadCls(id,cls);}}catch{setError('Invalid file.');}};r.readAsText(f);};
 
@@ -767,6 +779,15 @@
             const onDragOver=(e)=>{e.preventDefault();e.currentTarget.classList.add('drag-over');};
             const onDragLeave=(e)=>{e.currentTarget.classList.remove('drag-over');};
             const onDrop=(e,tid)=>{e.preventDefault();e.currentTarget.classList.remove('drag-over');if(!draggedStudent)return;const p=new Map(plan);let tn=null;for(const[n,s]of p.entries())if(s===tid)tn=n;p.set(draggedStudent.name,tid);if(tn)p.set(tn,draggedStudent.fromSeat);setPlan(p);setDraggedStu(null);};
+
+            // Rename a group slot. Names stick to the slot, not the students,
+            // so they survive a reshuffle. Blank falls back to "Group N".
+            const renameGroup=(i,val)=>{
+                const next=[...groupNames];
+                while(next.length<=i)next.push('');
+                next[i]=val.slice(0,40);
+                setGroupNames(next);
+            };
 
             // ── Group drag-to-move ──
             const onGroupDragStart=(e,name,from)=>{setDraggedGroupStu({name,from});e.dataTransfer.effectAllowed='move';};
@@ -1099,7 +1120,15 @@
                                                         onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-over');}}
                                                         onDragLeave={e=>e.currentTarget.classList.remove('drag-over')}
                                                         onDrop={e=>onGroupDrop(e,i)}>
-                                                        <div className="group-card-header" style={{background:`linear-gradient(135deg, ${c1}, ${c2})`}}>Group {i+1} <span className="group-count">{g.length}</span></div>
+                                                        <div className="group-card-header" style={{background:`linear-gradient(135deg, ${c1}, ${c2})`}}>
+                                                            <input className="group-name-input no-print" type="text" maxLength={40}
+                                                                value={groupNames[i]||''} placeholder={`Group ${i+1}`}
+                                                                onChange={e=>renameGroup(i,e.target.value)}
+                                                                onKeyDown={e=>{if(e.key==='Enter')e.target.blur();}}
+                                                                title="Click to name this group"/>
+                                                            <span className="print-only group-name-print">{groupNames[i]||`Group ${i+1}`}</span>
+                                                            <span className="group-count">{g.length}</span>
+                                                        </div>
                                                         <div className="group-members">
                                                             {g.length?g.map((n,j)=><div key={j} className="group-member" draggable onDragStart={e=>onGroupDragStart(e,n,i)} title="Drag to another group">{n}</div>):<div className="group-member" style={{color:'#94a3b8',fontStyle:'italic',cursor:'default'}}>—</div>}
                                                         </div>
