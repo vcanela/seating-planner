@@ -290,12 +290,23 @@
             justify-content: center; padding: 1.5rem; overflow: auto;
         }
 
+        /* Seating view: board at the top; the room centres when it fits and scrolls (never clips) when it doesn't */
+        .grid-area.seat-view { justify-content: flex-start; align-items: flex-start; }
+        .seat-wrap { margin: 0 auto; width: 100%; }
+
         .seating-grid { display: grid; gap: 0.5rem; user-select: none; }
         .seat {
-            aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+            aspect-ratio: 1.25; display: flex; align-items: center; justify-content: center;
             text-align: center; font-size: 0.72rem; font-weight: 600; line-height: 1.2; padding: 3px;
             border-radius: 8px; transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
-            position: relative; overflow: hidden; hyphens: auto; -webkit-hyphens: auto;
+            position: relative; overflow: hidden;
+            container-type: inline-size;   /* lets the name size itself relative to this tile (cqi units) */
+        }
+        /* Name sized as a proportion of its tile (--fit, set per name), so it fits on screen, after resizing and in print. Never breaks inside a word. */
+        .seat .nm {
+            display: block; width: 100%; line-height: 1.2;
+            word-break: normal; overflow-wrap: normal; hyphens: none;
+            font-size: clamp(9px, calc(var(--fit, 16) * 1cqi), 22px);
         }
         .seat::after {
             content: ''; position: absolute; bottom: 2px; left: 15%; right: 15%;
@@ -316,7 +327,7 @@
         }
         .seat.assigned:hover { transform: scale(1.04); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
         .seat.assigned:active { cursor: grabbing; }
-        .seat.not-available { background: transparent; border: 1.5px dashed #e2e8f0; opacity: 0.35; }
+        .seat.not-available { visibility: hidden; }
         .seat.not-available::after { display: none; }
         .seat.open { background: #e2e8f0; border: 2px dashed #64748b; color: #64748b; }
         .seat.open::after { display: none; }
@@ -422,6 +433,8 @@
             .print-only { display: flex !important; }
             body { background: white; }
             .grid-area { padding: 0.5rem; margin-left: 0 !important; }
+            .seat-wrap { width: 100% !important; }
+            .seating-grid { grid-template-columns: repeat(var(--cols), minmax(0, 1fr)) !important; }
             .seat { border: 1.5px solid #999 !important; background: #f9fafb !important; color: #000 !important; box-shadow: none !important; }
             .seat::after { display: none; }
             .seat.assigned { background: #e0f2fe !important; }
@@ -449,7 +462,9 @@
         const CK = 'sp_classes', AK = 'sp_active';
         const loadJSON = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
         const saveJSON = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-        const todayISO = () => new Date().toISOString().split('T')[0];
+        // Local date, not UTC: toISOString() is always UTC, which in NZ (UTC+12/13)
+        // stamps anything done before midday with yesterday's date.
+        const todayISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
         const genId = () => `cls_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
 
         // ── Schema ──
@@ -555,6 +570,25 @@
         const ICopy=()=><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
         const IGear=()=><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
 
+        // ── Seat name sizing ──
+        // Returns a font size as a percentage of the tile's inner width (CSS cqi units).
+        // Limited by the widest single word (names only wrap at spaces) and by height
+        // (worst case: one word per line). Measured once per name, then cached.
+        const measureCtx = document.createElement('canvas').getContext('2d');
+        let fitCache = {};
+        const nameFit = (name) => {
+            if (fitCache[name]) return fitCache[name];
+            measureCtx.font = "600 100px 'Lora', Georgia, serif";
+            const words = name.replace(/-/g, '- ').split(/\s+/).filter(Boolean); // hyphenated names may wrap after the hyphen
+            const widest = Math.max(...words.map(w => measureCtx.measureText(w).width / 100)); // width per 1px of font
+            const byWidth = 94 / widest;                          // fill up to 94% of the tile's inner width
+            const byHeight = 70 / (1.2 * Math.max(1, words.length)); // tile is 80% as tall as wide; leave a margin
+            return fitCache[name] = Math.min(22, byWidth, byHeight);
+        };
+
+        // ── Seat tile layout ──
+        const SEAT_GAP = 8, SEAT_ASPECT = 1.25;
+
         // ── Group header colours (cycled per group) ──
         const GROUP_COLORS=[['#4f46e5','#3b82f6'],['#0891b2','#06b6d4'],['#7c3aed','#a855f7'],['#db2777','#ec4899'],['#ea580c','#f59e0b'],['#16a34a','#22c55e'],['#0d9488','#14b8a6'],['#dc2626','#ef4444'],['#2563eb','#60a5fa'],['#9333ea','#c084fc']];
 
@@ -646,6 +680,22 @@
 
             // Mouse up listener
             useEffect(()=>{const h=()=>setDragging(false);window.addEventListener('mouseup',h);return()=>window.removeEventListener('mouseup',h);},[]);
+
+            // Track the space available to the seating grid (changes on window resize and when the setup panel opens).
+            // Height is measured from the area's top to the window bottom, so it can't feed back on its own content.
+            const areaRef=useRef(null);
+            const [areaBox,setAreaBox]=useState({w:0,h:0});
+            useEffect(()=>{
+                const el=areaRef.current;if(!el)return;
+                const measure=()=>{const r=el.getBoundingClientRect();setAreaBox({w:el.clientWidth,h:window.innerHeight-r.top});};
+                const ro=new ResizeObserver(measure);ro.observe(el);
+                window.addEventListener('resize',measure);measure();
+                return()=>{ro.disconnect();window.removeEventListener('resize',measure);};
+            },[]);
+
+            // Name sizes are measured with the real font; re-measure once Lora has loaded.
+            const [,setFontsReady]=useState(false);
+            useEffect(()=>{document.fonts?.ready.then(()=>{fitCache={};setFontsReady(true);});},[]);
 
             // ── Class management ──
             const loadCls=(id,cls)=>{
@@ -802,6 +852,16 @@
 
             // Computed
             const isReady = students.length > 0 && seats.size > 0;
+
+            // Tile width that fits the whole room in the visible area: whichever of width or height runs out first.
+            // Subtracts the area's padding (48), the board (68) and the status line (40).
+            // Min 68px keeps an 11-letter single word legible at the 9px floor (below that the room scrolls); max 170px.
+            const tileW = areaBox.w ? (() => {
+                const availW = areaBox.w - 48, availH = areaBox.h - 48 - 68 - 40;
+                const byW = (availW - SEAT_GAP * (cols - 1)) / cols;
+                const byH = ((availH - SEAT_GAP * (rows - 1)) / rows) * SEAT_ASPECT;
+                return Math.max(68, Math.min(byW, byH, 170));
+            })() : null;
             const hasPlan = plan && plan.size > 0;
             const hasGroups = mode === 'groups' && Array.isArray(groups) && groups.length > 0;
 
@@ -1098,7 +1158,7 @@
                     </div>
 
                     {/* ── GRID AREA ── */}
-                    <div className="grid-area" style={{marginLeft: panelOpen ? '390px' : '0', transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)'}}>
+                    <div ref={areaRef} className={`grid-area ${mode!=='groups'&&(isReady||editing)?'seat-view':''}`} style={{marginLeft: panelOpen ? '390px' : '0', transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)'}}>
                         {mode==='groups' ? (
                             students.length<2 ? (
                                 <div className="empty-state">
@@ -1157,13 +1217,13 @@
                                 </button>
                             </div>
                         ) : (
-                            <div style={{width:'100%',maxWidth:'960px'}}>
+                            <div className="seat-wrap" style={tileW?{width:`${tileW*cols+SEAT_GAP*(cols-1)}px`}:{maxWidth:'960px'}}>
                                 <div className="print-only print-header">
                                     <span className="print-class-name">{className}</span>
                                     <span className="print-date">{planDate?`Seating set ${fmtDate(planDate)}`:''}</span>
                                 </div>
                                 <div className="board">Board / Front of Class</div>
-                                <div className="seating-grid" style={{gridTemplateColumns:`repeat(${cols}, minmax(0, 1fr))`,width:'100%'}} onMouseLeave={()=>setDragging(false)}>
+                                <div className="seating-grid" style={{'--cols':cols,gridTemplateColumns:tileW?`repeat(${cols}, ${tileW}px)`:`repeat(${cols}, minmax(0, 1fr))`}} onMouseLeave={()=>setDragging(false)}>
                                     {Array.from({length:rows*cols}).map((_,idx)=>{
                                         const r=Math.floor(idx/cols),c=idx%cols,id=`${r}-${c}`,isSel=seats.has(id);
 
@@ -1183,7 +1243,7 @@
 
                                         return(
                                             <div key={id} className={`seat ${name?'assigned':'open'}`} draggable={!!name} onDragStart={e=>onDragStart(e,name,id)} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={e=>onDrop(e,id)} title={name||''}>
-                                                {name&&<span style={{fontSize:'0.82rem',lineHeight:1.2,wordBreak:'break-word',overflowWrap:'break-word'}}>{name}</span>}
+                                                {name&&<span className="nm" style={{'--fit':nameFit(name)}}>{name}</span>}
                                             </div>
                                         );
                                     })}
