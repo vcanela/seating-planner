@@ -105,6 +105,7 @@
         }
         .constraint-grid .label { font-weight: 700; color: #1e293b; white-space: nowrap; }
         .constraint-grid .desc { color: #475569; }
+        .ico { width: 15px; height: 15px; vertical-align: -2px; margin-right: 0.15rem; fill: none; stroke: #3b82f6; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
         /* ── Footer ── */
         footer {
@@ -198,11 +199,11 @@
                 <h2><span class="icon">⚙️</span> Set seating rules <span class="tag tag-amber">optional</span></h2>
                 <p>On the <strong>Rules</strong> tab, pick a rule type, choose the student(s), and click <strong>Add Rule</strong>:</p>
                 <div class="constraint-grid">
-                    <span class="label">⬆️ Sit at Front</span>
+                    <span class="label"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="4" y1="4" x2="20" y2="4"/><line x1="12" y1="20" x2="12" y2="9"/><polyline points="7 13 12 8 17 13"/></svg> Sit at Front</span>
                     <span class="desc">Keeps a student in the front rows.</span>
-                    <span class="label">↔️ Keep Separated</span>
+                    <span class="label"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" stroke-dasharray="2 3"/><polyline points="7 8 3 12 7 16"/><line x1="3" y1="12" x2="9" y2="12"/><polyline points="17 8 21 12 17 16"/><line x1="21" y1="12" x2="15" y2="12"/></svg> Keep Separated</span>
                     <span class="desc">Keeps two students apart from each other.</span>
-                    <span class="label">📍 Fixed Seat</span>
+                    <span class="label"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-5.33-6-10a6 6 0 0 1 12 0c0 4.67-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg> Fixed Seat</span>
                     <span class="desc">Pins a student to one exact seat every time — ideal for a wheelchair user or a fixed accessibility need. Pick the student, then choose the seat (listed as Row / Seat).</span>
                 </div>
                 <p style="margin-top:0.65rem;">The <strong>Flexibility</strong> bar shows how constrained the chart is overall — lots of rules mean less variation between reshuffles.</p>
@@ -217,6 +218,7 @@
                 <h2><span class="icon">🔀</span> Generate &amp; refine</h2>
                 <p>Make sure <strong>Seating</strong> is selected in the top-bar switch, close the panel, and click <strong>Generate</strong>. The planner tries 200 random arrangements and keeps the one that best satisfies your rules.</p>
                 <p>Click <strong>Reshuffle</strong> any time for a fresh arrangement — the banner tells you what percentage of seats changed. Need a tweak? <strong>Drag a student</strong> to another seat to swap the two.</p>
+                <p><strong>Reshuffled by mistake?</strong> Click <strong>Undo</strong> in the banner straight away to get back exactly what you had, including any swaps you'd made by hand. Undo covers the last reshuffle only, and disappears once you change the students, desks or rules.</p>
                 <p>The date the chart was set shows under the grid, so you can tell at a glance whether you've already refreshed it this week.</p>
                 <div class="tip"><strong>Print:</strong> Click <strong>Print</strong> for a clean landscape page — class name, date, the board marker, and no on-screen clutter.</div>
             </div>
@@ -258,9 +260,9 @@
                 <div class="tip"><strong>Already set up in Seating?</strong> The tickbox <strong>“Use seating's Keep Separated pairs”</strong> is <strong>on by default</strong> — any students you've told the seating chart to keep apart are automatically placed in different groups too, so there's nothing to re-enter. They appear in the list below marked <em>inherited</em>; edit them on the Seating → Rules tab, or untick the box to ignore them for grouping.</div>
                 <p>You can also add <strong>group rules</strong> of your own — pick the type, choose two students, and click <strong>Add Rule</strong>:</p>
                 <div class="constraint-grid">
-                    <span class="label">🤝 Same Group</span>
+                    <span class="label"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Same Group</span>
                     <span class="desc">Two students always end up together (this chains — link A&amp;B and B&amp;C and all three stay together).</span>
-                    <span class="label">🚫 Keep Apart</span>
+                    <span class="label"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" stroke-dasharray="2 3"/><polyline points="7 8 3 12 7 16"/><line x1="3" y1="12" x2="9" y2="12"/><polyline points="17 8 21 12 17 16"/><line x1="21" y1="12" x2="15" y2="12"/></svg> Keep Apart</span>
                     <span class="desc">Two students are always placed in different groups.</span>
                 </div>
             </div>
@@ -271,7 +273,7 @@
             <div class="step-number">8</div>
             <div class="step-body">
                 <h2><span class="icon">🎲</span> Form groups &amp; refine</h2>
-                <p>Click <strong>Form Groups</strong> in the top bar. The planner tries 300 arrangements and keeps the one that balances group sizes while respecting every rule. Click <strong>Reshuffle Groups</strong> for a different split.</p>
+                <p>Click <strong>Form Groups</strong> in the top bar. The planner tries 300 arrangements and keeps the one that balances group sizes while respecting every rule. Click <strong>Reshuffle Groups</strong> for a different split; if you preferred the previous one, click <strong>Undo</strong> in the banner.</p>
                 <p>The result shows as clear, colour-coded cards — one per group, easy for students to read off the board. Want to move someone? <strong>Drag their name onto another group's card</strong>.</p>
                 <p><strong>Naming groups:</strong> click the title on any card (“Group 1”, “Group 2”…) and type your own — a topic, a task, a station name. The names stay put when you reshuffle, so the same headings can carry across a whole unit while the students change. Clear the text to go back to the numbered default.</p>
                 <div class="tip"><strong>Print:</strong> The <strong>Print</strong> button gives a landscape page of the group cards with the class name and date.</div>
