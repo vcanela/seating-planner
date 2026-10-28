@@ -421,14 +421,25 @@
         .pick-chip.away { background: #fffbeb; color: #92400e; }
         .pick-chip button { border: none; background: none; color: inherit; cursor: pointer; font-weight: 700; padding: 0; line-height: 1; font-size: 0.95rem; }
         body.presenting .pick-controls, body.presenting .pick-meta { display: none !important; }
-        body.presenting .pick-wrap { max-width: none; }
+        body.presenting .pick-wrap { max-width: none; padding-bottom: 3.5rem; }   /* keeps messages clear of the floating Pick button */
+        .present-picks { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 50; display: flex; gap: 0.5rem; }
         .present-pick {
-            position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 50;
             padding: 0.55rem 1.4rem; border-radius: 99px; border: 1px solid #cbd5e1;
             background: rgba(255,255,255,0.9); color: #334155; font-weight: 600; font-size: 0.85rem;
             cursor: pointer; opacity: 0.4; transition: opacity 0.2s;
         }
         .present-pick:hover { opacity: 1; }
+
+        /* ── Errand picks ── */
+        .pick-errand { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.45rem 0.85rem; border-radius: 8px; border: 1.5px solid #fde68a; background: #fffbeb; color: #92400e; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+        .pick-errand:hover:not(:disabled) { background: #fef3c7; border-color: #fcd34d; }
+        .pick-errand:disabled { opacity: 0.45; cursor: not-allowed; }
+        .pick-tag { position: absolute; top: 0.45rem; right: 0.75rem; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #b45309; }
+        .errand-btn { opacity: 0; color: #64748b; background: none; border: none; cursor: pointer; padding: 2px; display: flex; align-items: center; transition: opacity 0.15s; }
+        .student-row:hover .errand-btn { opacity: 1; }
+        .errand-btn:hover { color: #b45309; }
+        .errand-btn.on { color: #b45309; }
+        .no-errand-pill { flex-shrink: 0; font-size: 0.62rem; font-weight: 700; padding: 0.05rem 0.45rem; border-radius: 99px; background: #fffbeb; color: #92400e; border: 1px solid #fde68a; white-space: nowrap; }
         .present-exit {
             position: fixed; top: 0.75rem; right: 0.75rem; z-index: 50;
             display: flex; align-items: center; gap: 0.35rem;
@@ -569,11 +580,12 @@
 
         const fmtDate = iso => iso ? new Date(iso+'T00:00:00').toLocaleDateString('en-NZ',{day:'numeric',month:'long',year:'numeric'}) : '';
 
-        const serialize = ({className,classCreated,rows,cols,selectedSeats,students,constraints,seatingPlan,planDate,groupMode,groupCount,groupSize,groupRules,inheritApart,groupNames,groups,groupsDate}) => ({
+        const serialize = ({className,classCreated,rows,cols,selectedSeats,students,constraints,seatingPlan,planDate,groupMode,groupCount,groupSize,groupRules,inheritApart,groupNames,groups,groupsDate,noErrands}) => ({
             version:'1.0',
             meta:{name:className,created:classCreated,modified:todayISO()},
             room:{rows,cols,seats:[...selectedSeats]},
             students:students.map(s=>s.name),
+            noErrands:(noErrands??[]).filter(n=>students.some(s=>s.name===n)),  // students not to be picked for errands
             constraints:constraints.map(c=>c.type==='front'?{type:'front',student:c.student1}:c.type==='fixed'?{type:'fixed',student:c.student1,seat:c.seat}:{type:'separate',students:[c.student1,c.student2]}),
             groups:{mode:groupMode??'count', count:groupCount??4, size:groupSize??4, inheritSeparate:inheritApart!==false, names:(groupNames??[]).map(n=>typeof n==='string'?n:''), rules:(groupRules??[]).map(r=>({type:r.type,students:[r.student1,r.student2]}))},
             _lastPlan:seatingPlan&&seatingPlan.size>0?[...seatingPlan]:null,
@@ -594,6 +606,7 @@
                 planDate:schema._planDate||null,
                 groupMode:schema.groups?.mode==='size'?'size':'count',
                 inheritApart:schema.groups?.inheritSeparate!==false,
+                noErrands:Array.isArray(schema.noErrands)?schema.noErrands.filter(n=>typeof n==='string'):[],
                 groupNames:Array.isArray(schema.groups?.names)?schema.groups.names.map(n=>typeof n==='string'?n.slice(0,40):''):[],
                 groupCount:Math.max(2,Math.min(99,schema.groups?.count??4)),
                 groupSize:Math.max(2,Math.min(99,schema.groups?.size??4)),
@@ -640,7 +653,7 @@
             const groupCount=Math.max(2,Math.min(99,json.groups?.count??4));
             const groupSize=Math.max(2,Math.min(99,json.groups?.size??4));
             const groupMode=json.groups?.mode==='size'?'size':'count';
-            return{data:{version:'1.0',meta:{name:json.meta?.name||'Imported',created:json.meta?.created||todayISO(),modified:todayISO()},room:{rows,cols,seats},students,constraints:cons,groups:{mode:groupMode,count:groupCount,size:groupSize,inheritSeparate:json.groups?.inheritSeparate!==false,names:Array.isArray(json.groups?.names)?json.groups.names.map(n=>typeof n==='string'?n.slice(0,40):''):[],rules:grules}},warnings:w};
+            return{data:{version:'1.0',meta:{name:json.meta?.name||'Imported',created:json.meta?.created||todayISO(),modified:todayISO()},room:{rows,cols,seats},students,noErrands:(json.noErrands??[]).filter(n=>stSet.has(n)),constraints:cons,groups:{mode:groupMode,count:groupCount,size:groupSize,inheritSeparate:json.groups?.inheritSeparate!==false,names:Array.isArray(json.groups?.names)?json.groups.names.map(n=>typeof n==='string'?n.slice(0,40):''):[],rules:grules}},warnings:w};
         };
 
         // Migrate old format
@@ -675,6 +688,7 @@
         const ITogether=({size})=><RuleIcon size={size}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></RuleIcon>;
         const IUndo=()=><RuleIcon size={12}><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></RuleIcon>;
         const IPresent=()=><RuleIcon size={14}><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></RuleIcon>;
+        const IErrand=({size=13})=><RuleIcon size={size}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></RuleIcon>;
         const IPencil=()=><RuleIcon size={12}><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></RuleIcon>;
 
         // ── Seat name sizing ──
@@ -760,6 +774,7 @@
             const [groupRules,setGroupRules]=useState(init.groupRules??[]);
             const [inheritApart,setInheritApart]=useState(init.inheritApart!==false);
             const [groupNames,setGroupNames]=useState(init.groupNames??[]);
+            const [noErrands,setNoErrands]=useState(init.noErrands??[]);   // names never picked for errands (private to the setup panel)
             const [groups,setGroups]=useState(init.groups??null);
             const [groupsDate,setGroupsDate]=useState(init.groupsDate??null);
             const [gType,setGType]=useState('together');
@@ -798,9 +813,9 @@
             useEffect(()=>{
                 if(skipSave.current){skipSave.current=false;return;}
                 const cls=loadJSON(CK,{});
-                cls[classId]=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan,planDate,groupMode:groupBy,groupCount,groupSize,groupRules,inheritApart,groupNames,groups,groupsDate});
+                cls[classId]=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan,planDate,groupMode:groupBy,groupCount,groupSize,groupRules,inheritApart,groupNames,groups,groupsDate,noErrands});
                 saveJSON(CK,cls);saveJSON(AK,classId);
-            },[classId,className,rows,cols,seats,students,constraints,plan,planDate,groupBy,groupCount,groupSize,groupRules,inheritApart,groupNames,groups,groupsDate]);
+            },[classId,className,rows,cols,seats,students,constraints,plan,planDate,groupBy,groupCount,groupSize,groupRules,inheritApart,groupNames,groups,groupsDate,noErrands]);
 
             // Mouse up listener
             useEffect(()=>{const h=()=>setDragging(false);window.addEventListener('mouseup',h);return()=>window.removeEventListener('mouseup',h);},[]);
@@ -827,7 +842,7 @@
                 setClassId(id);setClassName(s.meta?.name??'Unnamed');setClassCreated(s.meta?.created??todayISO());
                 setRows(d.rows);setCols(d.cols);setSeats(d.selectedSeats);
                 setStudents(d.students);setCons(d.constraints);setPlan(d.seatingPlan);setPlanDate(d.planDate??null);
-                setGroupBy(d.groupMode??'count');setGroupCount(d.groupCount??4);setGroupSize(d.groupSize??4);setGroupRules(d.groupRules??[]);setInheritApart(d.inheritApart!==false);setGroupNames(d.groupNames??[]);setGroups(d.groups??null);setGroupsDate(d.groupsDate??null);
+                setGroupBy(d.groupMode??'count');setGroupCount(d.groupCount??4);setGroupSize(d.groupSize??4);setGroupRules(d.groupRules??[]);setInheritApart(d.inheritApart!==false);setGroupNames(d.groupNames??[]);setNoErrands(d.noErrands??[]);setGroups(d.groups??null);setGroupsDate(d.groupsDate??null);
                 setGS1('');setGS2('');setDraggedGroupStu(null);
                 setPick(loadPick(id));setFlicker(null);setPickNote('');
                 setReshuffleSim(null);setUndoSnap(null);setError('');setEditing(false);
@@ -836,12 +851,12 @@
             };
             const switchCls=(id)=>{const cls=loadJSON(CK,{});loadCls(id,cls);};
             const createCls=()=>{const id=genId(),s=makeNew('New Class'),cls=loadJSON(CK,{});cls[id]=s;saveJSON(CK,cls);setClassIndex(p=>({...p,[id]:s.meta.name}));loadCls(id,cls);};
-            const dupCls=()=>{const id=genId(),cur=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan,groupMode:groupBy,groupCount,groupSize,groupRules,inheritApart,groupNames}),copy={...cur,meta:{...cur.meta,name:`${className} (copy)`,created:todayISO(),modified:todayISO()},_lastPlan:null,_lastGroups:null};const cls=loadJSON(CK,{});cls[id]=copy;saveJSON(CK,cls);setClassIndex(p=>({...p,[id]:copy.meta.name}));loadCls(id,cls);};
+            const dupCls=()=>{const id=genId(),cur=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan,groupMode:groupBy,groupCount,groupSize,groupRules,inheritApart,groupNames,noErrands}),copy={...cur,meta:{...cur.meta,name:`${className} (copy)`,created:todayISO(),modified:todayISO()},_lastPlan:null,_lastGroups:null};const cls=loadJSON(CK,{});cls[id]=copy;saveJSON(CK,cls);setClassIndex(p=>({...p,[id]:copy.meta.name}));loadCls(id,cls);};
             const delCls=()=>{if(!window.confirm(`Delete "${className}"?`))return;const cls=loadJSON(CK,{});delete cls[classId];const rem=Object.keys(cls);if(!rem.length){const nid=genId();cls[nid]=makeNew('My Class');rem.push(nid);}saveJSON(CK,cls);setClassIndex(Object.fromEntries(Object.entries(cls).map(([id,c])=>[id,c.meta?.name??'Unnamed'])));loadCls(rem[0],cls);};
             const renameCls=(n)=>{const name=n.trim()||'Unnamed Class';setClassName(name);setClassIndex(p=>({...p,[classId]:name}));};
 
             // ── Export / Import ──
-            const exportCls=()=>{const s=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan,planDate,groupMode:groupBy,groupCount,groupSize,groupRules,inheritApart,groupNames,groups,groupsDate});delete s._lastPlan;delete s._lastGroups;const b=new Blob([JSON.stringify(s,null,2)],{type:'application/json'});Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:`${className.replace(/[^a-z0-9]/gi,'-').toLowerCase()}-${todayISO()}.json`}).click();markExported([classId]);};
+            const exportCls=()=>{const s=serialize({className,classCreated,rows,cols,selectedSeats:seats,students,constraints,seatingPlan:plan,planDate,groupMode:groupBy,groupCount,groupSize,groupRules,inheritApart,groupNames,groups,groupsDate,noErrands});delete s._lastPlan;delete s._lastGroups;const b=new Blob([JSON.stringify(s,null,2)],{type:'application/json'});Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:`${className.replace(/[^a-z0-9]/gi,'-').toLowerCase()}-${todayISO()}.json`}).click();markExported([classId]);};
             const exportAll=()=>{const cls=loadJSON(CK,{});const p={version:'1.0',type:'collection',exported:todayISO(),classes:Object.values(cls).map(c=>{const{_lastPlan,...r}=c;return r;})};const b=new Blob([JSON.stringify(p,null,2)],{type:'application/json'});Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),download:`all-classes-${todayISO()}.json`}).click();markExported(Object.keys(cls));};
             const importAll=(e)=>{const f=e.target.files[0];if(!f)return;e.target.value='';const r=new FileReader();r.onload=ev=>{try{const newIds=[];const j=JSON.parse(ev.target.result);if(j.type==='collection'&&Array.isArray(j.classes)){const cls=loadJSON(CK,{});const ws=[];let n=0;for(const cd of j.classes){const{data,warnings}=validateImport(cd);const nid=genId();cls[nid]=data;newIds.push(nid);n++;if(warnings.length)ws.push(`${data.meta.name}: ${warnings.join(' ')}`);}saveJSON(CK,cls);markExported(newIds);setClassIndex(Object.fromEntries(Object.entries(cls).map(([id,c])=>[id,c.meta?.name??'Unnamed'])));setImportWarn(ws.length?[`${n} class${n!==1?'es':''} imported:`, ...ws]:[`${n} class${n!==1?'es':''} imported.`]);}else{const{data,warnings}=validateImport(j);const id=genId(),cls=loadJSON(CK,{});cls[id]=data;newIds.push(id);saveJSON(CK,cls);setClassIndex(p=>({...p,[id]:data.meta.name}));setImportWarn(warnings.length?warnings:[`"${data.meta.name}" imported.`]);markExported(newIds);loadCls(id,cls);}}catch{setError('Invalid file.');}};r.readAsText(f);};
 
@@ -851,7 +866,7 @@
 
             // ── Students ──
             const addStudents=(raw)=>{const names=raw.split(/[,;\n]/).map(n=>n.trim()).filter(Boolean);if(!names.length)return;const ex=new Set(students.map(s=>s.name.toLowerCase()));const fresh=names.filter(n=>!ex.has(n.toLowerCase()));setError(fresh.length<names.length?'Duplicates skipped.':'');setStudents(p=>[...p,...fresh.map(name=>({name,id:Date.now()+Math.random()}))]);setPlan(new Map());setGroups(null);};
-            const removeStudent=(id)=>{const st=students.find(s=>s.id===id);setStudents(students.filter(s=>s.id!==id));if(st){setCons(constraints.filter(c=>c.student1!==st.name&&c.student2!==st.name));setGroupRules(groupRules.filter(r=>r.student1!==st.name&&r.student2!==st.name));}setPlan(new Map());setGroups(null);};
+            const removeStudent=(id)=>{const st=students.find(s=>s.id===id);setStudents(students.filter(s=>s.id!==id));if(st){setCons(constraints.filter(c=>c.student1!==st.name&&c.student2!==st.name));setGroupRules(groupRules.filter(r=>r.student1!==st.name&&r.student2!==st.name));setNoErrands(noErrands.filter(n=>n!==st.name));}setPlan(new Map());setGroups(null);};
 
             // ── Constraints ──
             const addConstraint=()=>{
@@ -904,15 +919,21 @@
             const pickPool=herePool.filter(n=>!pk.noRepeat||!pickedSet.has(n));        // who can be picked next
             const pickShown=(flicker??pk.last).filter(n=>flicker||pickNames.includes(n));
             const poolEmpty=pk.noRepeat&&herePool.length>0&&pickPool.length===0;
+            // Errand picks: everyone here except students marked "no errands". Ignores the
+            // don't-repeat round, and never counts as a turn.
+            const noErrandSet=new Set(noErrands);
+            const errandPool=herePool.filter(n=>!noErrandSet.has(n));
 
-            const runPick=()=>{
-                if(flicker||!pickPool.length)return;
-                const pool=[...pickPool],n=Math.min(pk.count,pool.length);
+            const runPick=(errand=false)=>{
+                const source=errand?errandPool:pickPool;
+                if(flicker||!source.length)return;
+                const pool=[...source],n=Math.min(pk.count,pool.length);
                 for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
                 const result=pool.slice(0,n);
-                const note=n<pk.count?`Only ${n} left in the pool, so ${n} picked.`:'';
+                const note=n<pk.count?(errand?`Only ${n} available for errands, so ${n} picked.`:`Only ${n} left in the pool, so ${n} picked.`):'';
                 const commit=()=>{
-                    setPick(p=>{const b=p.date===todayISO()?p:freshPick(p);return {...b,last:result,picked:[...b.picked,...result]};});
+                    setPick(p=>{const b=p.date===todayISO()?p:freshPick(p);
+                        return errand?{...b,last:result,errand:true}:{...b,last:result,picked:[...b.picked,...result],errand:false};});
                     setFlicker(null);setPickNote(note);
                 };
                 if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches){commit();return;}
@@ -921,7 +942,7 @@
                 const delays=[45,45,45,50,50,55,60,70,80,95,115,140,175,220];let i=0;
                 const tick=()=>{
                     if(i>=delays.length){commit();return;}
-                    setFlicker(Array.from({length:n},()=>pickPool[Math.floor(Math.random()*pickPool.length)]));
+                    setFlicker(Array.from({length:n},()=>source[Math.floor(Math.random()*source.length)]));
                     setTimeout(tick,delays[i++]);
                 };
                 tick();
@@ -932,17 +953,19 @@
                 const name=pickShown[slot];if(!name||flicker)return;
                 setPick(p=>{
                     const away=[...p.away.filter(n=>n!==name),name];
-                    const picked=[...p.picked];const at=picked.lastIndexOf(name);if(at>=0)picked.splice(at,1);
+                    const picked=[...p.picked];
+                    if(!p.errand){const at=picked.lastIndexOf(name);if(at>=0)picked.splice(at,1);}
                     const last=[...p.last];
                     const awayS=new Set(away),pickedS=new Set(picked),others=new Set(last.filter((_,k)=>k!==slot));
-                    const cand=pickNames.filter(n=>!awayS.has(n)&&!others.has(n)&&(!p.noRepeat||!pickedS.has(n)));
-                    if(cand.length){const r=cand[Math.floor(Math.random()*cand.length)];last[slot]=r;picked.push(r);}
+                    const cand=pickNames.filter(n=>!awayS.has(n)&&!others.has(n)&&(p.errand?!noErrandSet.has(n):(!p.noRepeat||!pickedS.has(n))));
+                    if(cand.length){const r=cand[Math.floor(Math.random()*cand.length)];last[slot]=r;if(!p.errand)picked.push(r);}
                     else last.splice(slot,1);
                     return {...p,away,picked,last};
                 });
                 setPickNote('');
             };
             const unAway=(name)=>setPick(p=>({...p,away:p.away.filter(n=>n!==name)}));
+            const toggleNoErrand=(name)=>setNoErrands(noErrands.includes(name)?noErrands.filter(n=>n!==name):[...noErrands,name]);
             const restartPick=()=>{setPick(p=>({...freshPick(p),away:p.date===todayISO()?p.away:[]}));setPickNote('');};
 
             // Space bar picks while in Pick mode (handy in Present mode, where the toolbar is hidden)
@@ -952,7 +975,7 @@
                 const onKey=e=>{
                     if(e.key!==' ')return;
                     if(['INPUT','TEXTAREA','SELECT','BUTTON'].includes(e.target.tagName))return;
-                    e.preventDefault();runPickRef.current();
+                    e.preventDefault();runPickRef.current(false);
                 };
                 window.addEventListener('keydown',onKey);
                 return()=>window.removeEventListener('keydown',onKey);
@@ -978,6 +1001,7 @@
                 if(plan&&plan.size){const p=new Map();for(const[n,seat]of plan.entries())p.set(sw(n),seat);setPlan(p);}
                 if(Array.isArray(groups))setGroups(groups.map(g=>g.map(sw)));
                 setPick(p=>({...p,picked:p.picked.map(sw),away:p.away.map(sw),last:p.last.map(sw)}));
+                setNoErrands(noErrands.map(sw));
                 if(cS1===old)setCS1(name);if(cS2===old)setCS2(name);if(gS1===old)setGS1(name);if(gS2===old)setGS2(name);
                 setEditStu(null);setError('');
             };
@@ -1109,7 +1133,12 @@
             return (
                 <>
                     {presenting && <button className="present-exit no-print" onClick={exitPresent} title="Leave Present mode"><IX/> Exit · Esc</button>}
-                    {presenting && mode==='pick' && <button className="present-pick no-print" onClick={runPick} disabled={!pickPool.length||!!flicker}>Pick · Space</button>}
+                    {presenting && mode==='pick' && (pickPool.length>0||errandPool.length>0) && (
+                        <div className="present-picks no-print">
+                            {pickPool.length>0&&<button className="present-pick" onClick={()=>runPick(false)} disabled={!!flicker}>Pick · Space</button>}
+                            {errandPool.length>0&&<button className="present-pick" onClick={()=>runPick(true)} disabled={!!flicker}>Errand</button>}
+                        </div>
+                    )}
 
                     {/* ── TOP BAR ── */}
                     <div className="top-bar no-print">
@@ -1145,7 +1174,7 @@
                         <div className="tb-divider"/>
 
                         {mode==='pick' ? (
-                            <button className="tb-btn tb-btn-primary" onClick={runPick} disabled={!pickPool.length||!!flicker}>
+                            <button className="tb-btn tb-btn-primary" onClick={()=>runPick(false)} disabled={!pickPool.length||!!flicker}>
                                 <IShuffle/> Pick
                             </button>
                         ) : mode==='groups' ? (
@@ -1266,7 +1295,9 @@
                                                     ) : (
                                                         <>
                                                             <span className="truncate flex items-center gap-1.5 student-name" onClick={()=>setEditStu({id:s.id,text:s.name,invalid:false})} title="Click to rename"><IUser/>{s.name}</span>
+                                                            {noErrandSet.has(s.name)&&<span className="no-errand-pill" title="Never picked for errands. Only shown here, never on the main screen.">no errands</span>}
                                                             <span className="flex items-center gap-1 flex-shrink-0">
+                                                                <button className={`errand-btn ${noErrandSet.has(s.name)?'on':''}`} title={noErrandSet.has(s.name)?'Allow errands again':"Don't pick for errands (e.g. mobility). Only shown here."} onClick={()=>toggleNoErrand(s.name)}><IErrand/></button>
                                                                 <button className="edit-btn" title="Rename" onClick={()=>setEditStu({id:s.id,text:s.name,invalid:false})}><IPencil/></button>
                                                                 <button className="remove-btn" title="Remove" onClick={()=>removeStudent(s.id)}><IX/></button>
                                                             </span>
@@ -1280,7 +1311,9 @@
                                         <span>{students.length} student{students.length!==1?'s':''}</span>
                                         <span>{seats.size} seat{seats.size!==1?'s':''}</span>
                                     </div>
-                                    {students.length>0&&<button className="btn btn-danger" onClick={()=>{if(window.confirm('Remove all students?')){setStudents([]);setCons([]);}}}><ITrash/> Clear All</button>}
+                                    {noErrands.filter(n=>pickNames.includes(n)).length>0&&(()=>{const k=noErrands.filter(n=>pickNames.includes(n)).length;return(
+                                        <p style={{fontSize:'0.68rem',color:'#92400e',padding:'0 0.25rem',margin:0}}>{k} student{k!==1?'s':''} won't be picked for errands. This is only shown here, never on the main screen.</p>);})()}
+                                    {students.length>0&&<button className="btn btn-danger" onClick={()=>{if(window.confirm('Remove all students?')){setStudents([]);setCons([]);setNoErrands([]);}}}><ITrash/> Clear All</button>}
                                 </div>
                             )}
 
@@ -1458,6 +1491,7 @@
                                             <span className="pick-label">How many</span>
                                             <Stepper value={pk.count} min={1} max={Math.max(1,students.length)} onChange={v=>setPick(p=>({...p,count:v}))}/>
                                         </div>
+                                        <button className="pick-errand" onClick={()=>runPick(true)} disabled={!errandPool.length||!!flicker} title="Picks only from students who can run errands. Doesn't use up anyone's turn."><IErrand/> Pick for errand</button>
                                         <label className="pick-norepeat">
                                             <input type="checkbox" checked={pk.noRepeat} onChange={e=>setPick(p=>({...p,noRepeat:e.target.checked}))}/>
                                             Don't repeat until everyone's had a turn
@@ -1477,6 +1511,7 @@
                                             return (
                                                 <div key={flicker?`f${k}`:`${k}-${n}`} className={`pick-card ${flicker?'spinning':'landed'}`}>
                                                     {c>1&&<span className="pick-num">{k+1}</span>}
+                                                    {!flicker&&pk.errand&&<span className="pick-tag">Errand</span>}
                                                     <span className="pick-name" style={{fontSize:size}}>{n}</span>
                                                     {!flicker&&<button className="pick-away no-print" onClick={()=>markAway(k)} title="Not here today: pick someone else instead">Away</button>}
                                                 </div>
